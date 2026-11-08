@@ -1028,23 +1028,27 @@ window.__KASSZA_BOOT=function(){
     const commit=()=>{const order=roots().map(x=>x._item);if(freeze)freeze();list.splice(0,list.length,...order);after();const nh=document.getElementById(h.id);if(nh)nh.focus()};
     h.addEventListener('pointerdown',e=>{
       if(e.button!==0)return;e.preventDefault();
-      const tb=tr.parentNode,start=roots().indexOf(tr);
-      try{h.setPointerCapture(e.pointerId)}catch(_){}
+      const tb=tr.parentNode,start=roots().indexOf(tr),own=new Set(grp(tr));
       tr.classList.add('dragging');document.body.classList.add('is-dragging');
-      const move=ev=>{
-        const y=ev.clientY,others=roots().filter(x=>x!==tr);
+      let raf=0,lastY=e.clientY;
+      const place=()=>{
+        raf=0;
+        const y=lastY,others=roots().filter(x=>x!==tr);
         let before=null;
         for(const o of others){const r=o.getBoundingClientRect();if(y<r.top+r.height/2){before=o;break}}
-        const ref=before||(others.length?(grp(others[others.length-1]).pop().nextSibling):null);
-        if(ref===tr||ref===tr._sub)return;
+        let ref=before||(others.length?grp(others[others.length-1]).pop().nextSibling:null);
+        while(ref&&own.has(ref))ref=ref.nextSibling;
+        if(grp(tr).slice(-1)[0].nextSibling===ref)return;
         grp(tr).forEach(n=>tb.insertBefore(n,ref));
       };
+      const move=ev=>{lastY=ev.clientY;if(!raf)raf=requestAnimationFrame(place)};
       const up=()=>{
-        h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
+        window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);window.removeEventListener('blur',up);
+        if(raf){cancelAnimationFrame(raf);raf=0}
         tr.classList.remove('dragging');document.body.classList.remove('is-dragging');
         if(roots().indexOf(tr)!==start)commit();
       };
-      h.addEventListener('pointermove',move);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+      window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);window.addEventListener('blur',up);
     });
     h.addEventListener('keydown',e=>{
       if(e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;e.preventDefault();
