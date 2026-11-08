@@ -1668,7 +1668,7 @@ window.__KASSZA_BOOT=function(){
     nt.innerHTML=`<td colspan="${cols}"><div class="notewrap"><span class="noteicon" aria-hidden="true">i</span><input type="text" placeholder="Megjegyzés ehhez a tételhez…" aria-label="Megjegyzés"></div></td>`;
     const inp=nt.querySelector('input');inp.value=r.note||'';
     const b=document.createElement('button');b.type='button';b.className='infobtn';b.textContent='i';
-    const sync=()=>{const has=!!(r.note||'').trim();b.classList.toggle('has',has);b.title=has?r.note:'Megjegyzés hozzáadása';b.setAttribute('aria-label',has?'Megjegyzés: '+r.note:'Megjegyzés hozzáadása');b.setAttribute('aria-expanded',String(!nt.hidden))};
+    const sync=()=>{const has=!!(r.note||'').trim();b.classList.toggle('has',has);b.title=has?'Megjegyzés megnyitása':'Megjegyzés hozzáadása';b.setAttribute('aria-label',has?'Megjegyzés: '+r.note:'Megjegyzés hozzáadása');b.setAttribute('aria-expanded',String(!nt.hidden))};
     nt.hidden=!openNotes.has(r.id);
     b.addEventListener('click',()=>{nt.hidden=!nt.hidden;nt.hidden?openNotes.delete(r.id):openNotes.add(r.id);sync();if(!nt.hidden)inp.focus()});
     inp.addEventListener('input',()=>{r.note=inp.value;sync();touchPort()});
