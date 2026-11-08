@@ -348,6 +348,8 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
 .reinvpick .rp-sel{width:auto;height:28px;padding:0 8px;font-size:12px;border-radius:999px;background:var(--surface)}
 .reinvpick .rp-x{border:0;background:none;color:var(--muted);font-size:14px;line-height:1;padding:0 0 0 4px;cursor:pointer}
 .reinvpick .rp-x:hover{color:var(--bad)}
+.rv-edit{font-size:12px;margin-left:8px}
+.rv-sum{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -1573,7 +1575,7 @@ window.__KASSZA_BOOT=function(){
   function annual(r){
     const a=+r.amt||0,o=+r.out||0,s1=pd(r.start),e1=pd(r.end);
     if(!(a>0&&o>0&&s1&&e1&&e1>s1))return null;
-    const yrs=(e1-s1)/(365.25*864e5);return Math.pow(o/a,1/yrs)-1;
+    const yrs=(e1-s1)/(365.25*864e5);if(yrs<1)return null;return Math.pow(o/a,1/yrs)-1;
   }
   function invState(r){
     const has=r.out!==null&&r.out!==''&&r.out!==undefined;
@@ -1598,16 +1600,19 @@ window.__KASSZA_BOOT=function(){
     // régi kapcsolatok átalakítása
     allInv().forEach(x=>{pids(x);if(isSrc(x)&&(x.reinvTo||[]).length){x.reinvTo.forEach(id=>{const c=allInv().find(y=>y.id===id);if(c&&c!==x){c.parents=c.parents||[];if(!c.parents.includes(x.id))c.parents.push(x.id)}});x.reinvTo=[]}});
     grpOf=new Map();let gi=0;
-    const depth=x=>{let d=0,p=parentOf(x),guard=0;while(p&&guard++<20){d++;p=parentOf(p)}return d};
+    const depth=(x,g=0)=>{const ps=parentsOf(x);if(!ps.length||g>20)return 0;return 1+Math.max(...ps.map(p=>depth(p,g+1)))};
     allInv().forEach(x=>{const g={depth:depth(x)};if(isSrc(x))g.own=GRP[gi++%GRP.length];grpOf.set(x.id,g)});
-    allInv().forEach(x=>{const ps=parentsOf(x);if(ps.length){const g=grpOf.get(x.id);g.in=grpOf.get(ps[0].id).own;g.from=ps[0];g.froms=ps}});
+    allInv().forEach(x=>{const ps=parentsOf(x);if(ps.length){const g=grpOf.get(x.id);g.in=ps.length>1?'var(--muted)':grpOf.get(ps[0].id).own;g.from=ps[0];g.froms=ps}});
   }
   function treeOrder(rows){
-    const out=[],seen=new Set();
-    const kids=p=>rows.filter(x=>parentOf(x)===p);
-    const walk=x=>{if(seen.has(x))return;seen.add(x);out.push(x);kids(x).forEach(walk)};
-    rows.filter(x=>!parentOf(x)||!rows.includes(parentOf(x))).forEach(walk);
-    rows.forEach(x=>{if(!seen.has(x))out.push(x)});
+    const out=[],seen=new Set(),placed=new Set();
+    const walk=x=>{
+      if(seen.has(x))return;seen.add(x);out.push(x);
+      // gyerekek: akiknek ez az utolsó, még be nem járt szülője (közös befektetés a forrásai alá kerül)
+      rows.forEach(c=>{if(placed.has(c)||seen.has(c))return;const ps=parentsOf(c).filter(p=>rows.includes(p));if(ps.length&&ps.includes(x)&&ps.every(p=>seen.has(p))){placed.add(c);walk(c)}});
+    };
+    rows.filter(x=>!parentsOf(x).some(p=>rows.includes(p))).forEach(walk);
+    rows.forEach(x=>{if(!seen.has(x))walk(x)});
     return out;
   }
   function renderPort(){
@@ -1706,47 +1711,49 @@ window.__KASSZA_BOOT=function(){
     }
     if(!isSrc(r))return;
     const kids=kidsOf(r);
+    // összegző sor: hová ment + egyeztetés
+    const sumEl=subTd.querySelector('.rv-sum');
+    if(sumEl){
+      let t='';
+      if(kids.length){
+        t=' → '+kids.map(k=>(k.n||'Névtelen')+(parentsOf(k).length>1?' (közös)':'')).join(', ');
+        if(+r.out){
+          const excl=kids.every(k=>parentsOf(k).length===1);
+          if(excl){const diff=kids.reduce((s2,k)=>s2+(+k.amt||0),0)-(+r.out);if(Math.abs(diff)>=1)t+=diff>0?` · +${ft(diff)} pótolva`:` · ${ft(-diff)} nincs elosztva`}
+          else{kids.filter(k=>parentsOf(k).length>1).forEach(k=>{const outs=parentsOf(k).reduce((s2,p)=>s2+(+p.out||0),0),d=(+k.amt||0)-outs;if(Math.abs(d)>=1)t+=d>0?` · ${k.n||'közös'}: +${ft(d)} pótolva`:` · ${k.n||'közös'}: ${ft(-d)} hiányzik`})}
+        }
+      }else t=' · még nincs megadva, hová került';
+      sumEl.append(document.createTextNode(t));
+      const ed=document.createElement('button');ed.type='button';ed.className='linkbtn rv-edit';
+      const editing=reinvEdit.has(r.id)||!kids.length;
+      ed.textContent=editing&&kids.length?'kész':'szerkesztés';
+      if(kids.length)ed.addEventListener('click',()=>{reinvEdit.has(r.id)?reinvEdit.delete(r.id):reinvEdit.add(r.id);renderPort()});
+      if(kids.length)sumEl.after(ed);
+      if(!editing)return;
+    }
     const box=document.createElement('div');box.className='reinvpick';
-    // máshol (másik szülő alatt) megjelenő, ide is kapcsolt sorok
-    kids.filter(k=>parentOf(k)!==r).forEach(k=>{
-      const c=document.createElement('span');c.className='rp-c sel';c.style.setProperty('--grp',(grpOf.get(parentOf(k).id)||{}).own||'var(--accent)');
+    kids.filter(k=>parentsOf(k).length>1).forEach(k=>{
+      const c=document.createElement('span');c.className='rp-c sel';
       c.innerHTML='<span></span><button type="button" class="rp-x" aria-label="Kapcsolat törlése" title="Kapcsolat törlése">×</button>';
       c.querySelector('span').textContent='→ '+(k.n||'Névtelen')+' (közös)';
       c.querySelector('button').addEventListener('click',()=>{k.parents=pids(k).filter(id=>id!==r.id);touchPort();renderPort()});
       box.appendChild(c);
     });
     const btn=document.createElement('button');btn.type='button';btn.className='add rp-add';
-    btn.textContent=kids.length?'+ Még egy új sor ide':'+ Új sor: hová forgattátok vissza';
+    btn.textContent='+ Új sor ide';
     btn.addEventListener('click',()=>{
       const bl=port().blocks.find(b=>b.rows.includes(r));
       const nr={id:uidp(),n:'',start:r.end||todayISO(),amt:0,end:'',out:null,parents:[r.id]};
-      bl.rows.splice(bl.rows.indexOf(r)+1,0,nr);touchPort();renderPort();const el=$('pn-'+nr.id);if(el)el.focus();
+      bl.rows.splice(bl.rows.indexOf(r)+1,0,nr);reinvEdit.delete(r.id);touchPort();renderPort();const el=$('pn-'+nr.id);if(el)el.focus();
     });
     box.appendChild(btn);
-    // meglévő sorba (pl. egy másik lejárt befektetéssel közösen)
     const anc=ancestors(r),cands=allInv().filter(x=>x!==r&&!anc.has(x)&&!kids.includes(x)&&!ancestors(x).has(r)&&!(x.reinv&&invState(x).k==='done'));
     if(cands.length){
       const sel=document.createElement('select');sel.className='rp-sel';sel.setAttribute('aria-label','Meglévő befektetésbe forgattuk');
-      sel.innerHTML='<option value="">Meglévőbe forgattuk (pl. közösen)…</option>'+cands.map(x=>`<option value="${x.id}"></option>`).join('');
+      sel.innerHTML='<option value="">vagy meglévőbe (közösen)…</option>'+cands.map(x=>`<option value="${x.id}"></option>`).join('');
       [...sel.options].slice(1).forEach((o,i)=>{o.textContent=cands[i].n||'Névtelen'});
-      sel.addEventListener('change',()=>{const t=cands.find(x=>x.id===sel.value);if(!t)return;t.parents=pids(t);t.parents.push(r.id);touchPort();renderPort()});
+      sel.addEventListener('change',()=>{const t=cands.find(x=>x.id===sel.value);if(!t)return;t.parents=pids(t);t.parents.push(r.id);reinvEdit.delete(r.id);touchPort();renderPort()});
       box.appendChild(sel);
-    }
-    if(kids.length&&+r.out){
-      const excl=kids.filter(k=>parentsOf(k).length===1);
-      if(excl.length===kids.length){
-        const sum=kids.reduce((t,o)=>t+(+o.amt||0),0),diff=sum-(+r.out);
-        const m=document.createElement('span');m.className='rp-s';
-        m.textContent=Math.abs(diff)<1?`✓ ${kids.length} helyre, pontosan szétosztva`:diff>0?`${kids.length} helyre, +${ft(diff)} pótolva`:`${kids.length} helyre, ${ft(-diff)} még nincs elosztva`;
-        box.appendChild(m);
-      }else{
-        kids.filter(k=>parentsOf(k).length>1).forEach(k=>{
-          const srcs=parentsOf(k),outs=srcs.reduce((t,p)=>t+(+p.out||0),0),diff=(+k.amt||0)-outs;
-          const m=document.createElement('span');m.className='rp-s';
-          m.textContent=`${k.n||'Névtelen'}: ${srcs.length} befektetés együtt ${ft(outs)}`+(Math.abs(diff)<1?' ✓':diff>0?`, +${ft(diff)} pótolva`:`, ${ft(-diff)} nincs benne`);
-          box.appendChild(m);
-        });
-      }
     }
     subTd.appendChild(box);
   }
@@ -1757,7 +1764,7 @@ window.__KASSZA_BOOT=function(){
       subTd.innerHTML=`<span>A befizetett ${ft(a)} összeggel számolok. Ha van lejárata, add meg, és kiszámolom a várható hozamot.</span>`;return}
     const days=daysUntil(r.end);
     if(st.k==='done'&&r.reinv){stEl.className='st reinvst';stEl.textContent='Visszaforgatva';
-      subTd.innerHTML=`<span>Lejárt (${fd(r.end)})${st.has?', '+ft(o):''}, visszaforgatva, ezért nem számít bele az összesbe.</span>`;return}
+      subTd.innerHTML=`<span class="rv-sum">Lejárt ${fd(r.end)}${st.has?' · kivett '+ft(o):''}</span>`;return}
     if(st.k==='done'){stEl.className='st done';stEl.textContent='Lejárt';
       subTd.innerHTML=st.has?`<span class="done">Lejárt (${fd(r.end)}): ${ft(o)} hozzáadva az összeshez (${gain>=0?'+':'−'}${ft(Math.abs(gain))} hozam${annTxt}).</span>`
         :`<span>Lejárt (${fd(r.end)}). Írd be, mennyit vettetek ki, és hozzáadom az összeshez. Addig a betett összeggel számolok.</span>`;return}
