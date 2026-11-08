@@ -1804,13 +1804,14 @@ window.__KASSZA_BOOT=function(){
 
   function calcPort(){
     if(!state.port)return;
-    let S=0,R=0,M=0,G=0,F=0,NL=0;const per=[],up=[];
+    let S=0,R=0,M=0,G=0,F=0,NL=0,ALL=0,RV=0;const per=[],up=[];
     port().blocks.forEach((bl,bi)=>{
       let t=0;
       bl.rows.forEach(r=>{
-        if(bl.type!=='inv'){const v=+r.amt||0;t+=v;S+=v;return}
+        if(bl.type!=='inv'){const v=+r.amt||0;t+=v;S+=v;ALL+=v;return}
         const st=invState(r),a=+r.amt||0,o=+r.out||0;
-        if(st.k==='done'&&r.reinv)return;
+        if(st.k==='done'&&r.reinv){RV++;return}
+        ALL+=st.has&&o>0?o:a;
         if(st.k==='done'){const v=st.has?o:a;t+=v;M+=v;if(st.has)G+=o-a}
         else if(st.k==='none'){t+=a;NL+=a}
         else if(r.start&&a>0&&r.end){t+=a;R+=a;up.push({r,a,o:st.has?o:null});if(st.has)F+=o-a}
@@ -1826,8 +1827,8 @@ window.__KASSZA_BOOT=function(){
     up.sort((x,y)=>x.r.end<y.r.end?-1:1);
     $('pLockedSub').textContent=up.length?`${up.length} befektetés, a következő ${fd(up[0].r.end)}-án/én szabadul fel`.replace(/-án\/én/,''):'nincs lekötött befektetés';
     if(up.length)$('pLockedSub').textContent=`${up.length} befektetésben · következő lejárat: ${fd(up[0].r.end)}`;
-    $('pTotal').textContent=ft(tot+Math.max(0,F));
-    $('pFuture').textContent=`a később lejárók várható összegével együtt · ebből most elérhető ${ft(avail)}, lekötött tőke ${ft(R)}${F>0?`, várható hozam +${ft(F)}`:''}`;
+    $('pTotal').textContent=ft(ALL);
+    $('pFuture').textContent=`minden megtakarítás és befektetés (lejárt, futó, lejárat nélküli), a futóknál a lejáratkor várható összeggel${RV?` · a ${RV} visszaforgatott tételt nem számolom kétszer, az összegük az új befektetésekben van`:''}`;
     // mikor válik elérhetővé: lista + lépcsős diagram
     const u=$('pUpcoming');u.innerHTML='';
     let cum=avail;const steps=[{d:todayISO(),v:avail}];
