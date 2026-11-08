@@ -151,7 +151,7 @@ input.block-name:focus{background:var(--surface);border-color:var(--accent)}
 .inv .c-date{width:142px}
 .inv .c-amt{width:122px}
 .inv .c-st{width:104px;text-align:center}
-#view-megtakaritas .grid{grid-template-columns:minmax(0,1.8fr) minmax(0,1fr)}
+#view-megtakaritas .grid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr)}
 @media (max-width:900px){#view-megtakaritas .grid{grid-template-columns:1fr}}
 tr.subrow td{padding:0 4px 8px 26px;font-size:12.5px;color:var(--muted)}
 tr.subrow .pend{opacity:.85;font-style:italic}
@@ -330,6 +330,18 @@ tr.reinvested + tr.subrow td{opacity:1}
 tr.grp td:first-child{box-shadow:inset 4px 0 0 var(--grp);border-radius:4px 0 0 4px}
 .grpchip{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;font-style:normal;color:var(--ink);background:color-mix(in srgb,var(--grp) 22%,transparent)}
 .reinv input{accent-color:var(--accent)}
+tr.child td:first-child .namecell{padding-left:calc(var(--depth,0) * 14px)}
+.inv td:first-child{min-width:170px}
+.inv td.c-amt{min-width:112px}
+.inv td.c-date{min-width:134px}
+.inv table{min-width:880px!important}
+tr.child td:first-child .namecell::before{content:"↳";color:var(--grp,var(--muted));font-weight:700;margin-right:4px;order:2}
+tr.child .handle{order:1}
+tr.child .namecell input{order:3}
+tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14px)}
+.st.reinvst{background:color-mix(in srgb,var(--own,var(--muted)) 22%,transparent)!important;color:var(--ink)}
+.reinvpick .rp-add{padding:0 12px;height:28px;font-size:12px;border-color:var(--own,var(--line));color:var(--ink)}
+.reinvpick .rp-add:hover{background:color-mix(in srgb,var(--own,var(--accent)) 12%,var(--surface))}
 </style>
 </head>
 <body>
@@ -1570,12 +1582,23 @@ window.__KASSZA_BOOT=function(){
 
   const GRP=['#D65C94','#2BA59B','#E2A93B','#4C7BD9','#EE8640','#8F6AD8'];
   let grpOf=new Map(),reinvEdit=new Set();
+  const isSrc=x=>!!x&&x.reinv&&invState(x).k==='done';
+  function parentOf(x){if(!x.parent)return null;const p=allInv().find(y=>y.id===x.parent);return p&&isSrc(p)?p:null}
   function computeGroups(){
+    // régi (listából választott) kapcsolatok átalakítása szülő–gyerek kapcsolattá
+    allInv().forEach(x=>{if(isSrc(x)&&(x.reinvTo||[]).length){x.reinvTo.forEach(id=>{const c=allInv().find(y=>y.id===id);if(c&&!c.parent&&c!==x)c.parent=x.id});x.reinvTo=[]}});
     grpOf=new Map();let gi=0;
-    allInv().filter(x=>x.reinv&&invState(x).k==='done').forEach(x=>{
-      const c=GRP[gi++%GRP.length];grpOf.set(x.id,{c,role:'src'});
-      (x.reinvTo||[]).forEach(id=>{if(!grpOf.has(id))grpOf.set(id,{c,role:'dst',from:x})});
-    });
+    const depth=x=>{let d=0,p=parentOf(x),guard=0;while(p&&guard++<20){d++;p=parentOf(p)}return d};
+    allInv().forEach(x=>{const g={depth:depth(x)};if(isSrc(x))g.own=GRP[gi++%GRP.length];grpOf.set(x.id,g)});
+    allInv().forEach(x=>{const p=parentOf(x);if(p){grpOf.get(x.id).in=grpOf.get(p.id).own;grpOf.get(x.id).from=p}});
+  }
+  function treeOrder(rows){
+    const out=[],seen=new Set();
+    const kids=p=>rows.filter(x=>x.parent===p.id&&parentOf(x)===p);
+    const walk=x=>{if(seen.has(x))return;seen.add(x);out.push(x);kids(x).forEach(walk)};
+    rows.filter(x=>!parentOf(x)||!rows.includes(parentOf(x))).forEach(walk);
+    rows.forEach(x=>{if(!seen.has(x))out.push(x)});
+    return out;
   }
   function renderPort(){
     computeGroups();
@@ -1598,7 +1621,7 @@ window.__KASSZA_BOOT=function(){
     const dot=sec.querySelector('.dot');
     dot.addEventListener('click',e=>{e.stopPropagation();openPicker(dot,bl)});
     const tb=sec.querySelector('tbody');
-    bl.rows.forEach(r=>bl.type==='inv'?invRow(tb,bl,r):savRow(tb,bl,r));
+    (bl.type==='inv'?treeOrder(bl.rows):bl.rows).forEach(r=>bl.type==='inv'?invRow(tb,bl,r):savRow(tb,bl,r));
     sec.querySelector('[data-act="add"]').addEventListener('click',()=>{
       const r=bl.type==='inv'?{id:uidp(),n:'Új befektetés',start:todayISO(),amt:0,end:'',out:null}:{id:uidp(),n:'Új megtakarítás',amt:0};
       bl.rows.push(r);touchPort();renderPort();const el=$('pn-'+r.id);if(el)el.select();
@@ -1636,7 +1659,7 @@ window.__KASSZA_BOOT=function(){
   }
   function invRow(tb,bl,r){
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><div class="namecell"><button type="button" class="handle" id="h-${r.id}" aria-label="Sor áthelyezése (húzd, vagy fel/le nyíl)" title="Húzd az áthelyezéshez"><svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></button><input type="text" id="pn-${r.id}" aria-label="Megnevezés"></div></td>
+    tr.innerHTML=`<td><div class="namecell"><button type="button" class="handle" id="h-${r.id}" aria-label="Sor áthelyezése (húzd, vagy fel/le nyíl)" title="Húzd az áthelyezéshez"><svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></button><input type="text" id="pn-${r.id}" aria-label="Megnevezés" placeholder="Új befektetés neve"></div></td>
       <td class="c-date"><input type="date" id="ps-${r.id}" aria-label="Befektetés napja"></td>
       <td class="c-amt"><input type="number" inputmode="numeric" min="0" step="1000" id="pa-${r.id}" aria-label="Betett összeg, Ft" placeholder="0"></td>
       <td class="c-date"><input type="date" id="pe-${r.id}" aria-label="Lejárat napja"></td>
@@ -1646,45 +1669,41 @@ window.__KASSZA_BOOT=function(){
     const [n,sd,a,ed,o]=tr.querySelectorAll('input');
     n.value=r.n;sd.value=r.start||'';a.value=r.amt||'';ed.value=r.end||'';o.value=(r.out===null||r.out===undefined)?'':r.out;
     const upd=()=>{updInv(r,tr.querySelector('.st'),sub.firstElementChild);const rl=tr.querySelector('.reinv'),st=invState(r);rl.hidden=st.k!=='done';tr.classList.toggle('reinvested',st.k==='done'&&!!r.reinv)};
-    {const rc=tr.querySelector('.reinv input');rc.checked=!!r.reinv;rc.addEventListener('change',()=>{r.reinv=rc.checked;if(r.reinv&&!(r.reinvTo||[]).length)reinvEdit.add(r.id);touchPort();renderPort()})}
+    {const rc=tr.querySelector('.reinv input');rc.checked=!!r.reinv;rc.addEventListener('change',()=>{r.reinv=rc.checked;touchPort();renderPort()})}
     n.addEventListener('input',()=>{r.n=n.value;touchPort()});
     sd.addEventListener('input',()=>{r.start=sd.value;upd();touchPort()});
     a.addEventListener('input',()=>{r.amt=num(a.value);upd();touchPort()});
     ed.addEventListener('input',()=>{r.end=ed.value;upd();touchPort()});
     o.addEventListener('input',()=>{r.out=o.value===''?null:num(o.value);upd();touchPort()});
     tr.lastElementChild.append(noteBtn(tr,r,7),delBtn(bl,r));
-    {const g=grpOf.get(r.id);if(g){[tr,sub,tr._note].forEach(n=>{n.classList.add('grp');n.style.setProperty('--grp',g.c)})}}
+    {const g=grpOf.get(r.id)||{};const stripe=g.in||g.own;
+      if(stripe)[tr,sub,tr._note].forEach(n=>{n.classList.add('grp');n.style.setProperty('--grp',stripe)});
+      if(g.own){tr.style.setProperty('--own',g.own);sub.style.setProperty('--own',g.own)}
+      if(g.depth){[tr,sub,tr._note].forEach(n=>n.style.setProperty('--depth',g.depth));tr.classList.add('child')}}
     tb.appendChild(tr);tb.appendChild(sub);tb.appendChild(tr._note);upd();
     tr._sub=sub;sortable(tr,bl.rows,r,null,()=>{touchPort();renderPort()});
   }
   function updInv(r,stEl,subTd){updInvBase(r,stEl,subTd);decorateReinv(r,subTd)}
   const allInv=()=>port().blocks.filter(b=>b.type==='inv').flatMap(b=>b.rows);
   function decorateReinv(r,subTd){
-    const g=grpOf.get(r.id);
-    if(g&&g.role==='dst'){const d=document.createElement('span');d.className='grpchip';d.textContent='↩ innen: '+(g.from.n||'Névtelen');subTd.prepend(d)}
-    if(!(invState(r).k==='done'&&r.reinv))return;
-    const opts=allInv().filter(x=>x!==r);
-    r.reinvTo=(r.reinvTo||[]).filter(id=>opts.some(o=>o.id===id));
-    const editing=reinvEdit.has(r.id)||!r.reinvTo.length;
+    const g=grpOf.get(r.id)||{};
+    if(g.from){const blk=port().blocks.find(b=>b.rows.includes(r)),same=blk&&blk.rows.includes(g.from);if(!same){const d=document.createElement('span');d.className='grpchip';d.textContent='↩ innen: '+(g.from.n||'Névtelen');subTd.prepend(d)}}
+    if(!isSrc(r))return;
+    const kids=allInv().filter(x=>parentOf(x)===r);
     const box=document.createElement('div');box.className='reinvpick';
-    if(!opts.length){box.innerHTML='<span class="rp-n">Előbb vedd fel az új befektetést egy új sorban, utána itt kiválaszthatod.</span>';subTd.appendChild(box);return}
-    const lbl=document.createElement('span');lbl.className='rp-l';lbl.textContent=editing?'Hová forgattátok vissza?':'→';box.appendChild(lbl);
-    (editing?opts:opts.filter(o=>r.reinvTo.includes(o.id))).forEach(o=>{
-      const on=r.reinvTo.includes(o.id);
-      if(editing){
-        const c=document.createElement('label');c.className='rp-c';
-        c.innerHTML='<input type="checkbox"><span></span>';c.querySelector('span').textContent=o.n||'Névtelen';
-        const cb=c.querySelector('input');cb.checked=on;
-        cb.addEventListener('change',()=>{r.reinvTo=cb.checked?[...r.reinvTo,o.id]:r.reinvTo.filter(id=>id!==o.id);touchPort();computeGroups();renderPort()});
-        box.appendChild(c);
-      }else{const c=document.createElement('span');c.className='rp-c sel';c.textContent=o.n||'Névtelen';box.appendChild(c)}
+    const btn=document.createElement('button');btn.type='button';btn.className='add rp-add';
+    btn.textContent=kids.length?'+ Még egy sor ide':'+ Hová forgattátok vissza? Új sor';
+    btn.addEventListener('click',()=>{
+      const bl=port().blocks.find(b=>b.rows.includes(r));
+      const nr={id:uidp(),n:'',start:r.end||todayISO(),amt:0,end:'',out:null,parent:r.id};
+      bl.rows.splice(bl.rows.indexOf(r)+1,0,nr);touchPort();renderPort();const el=$('pn-'+nr.id);if(el)el.focus();
     });
-    const btn=document.createElement('button');btn.type='button';btn.className='linkbtn rp-b';
-    btn.textContent=editing?(r.reinvTo.length?'Kész':''):'módosítás';
-    if(btn.textContent){btn.addEventListener('click',()=>{editing?reinvEdit.delete(r.id):reinvEdit.add(r.id);renderPort()});box.appendChild(btn)}
-    if(r.reinvTo.length&&+r.out){
-      const sum=opts.filter(o=>r.reinvTo.includes(o.id)).reduce((t,o)=>t+(+o.amt||0),0),diff=sum-(+r.out);
-      if(Math.abs(diff)>=1){const m=document.createElement('span');m.className='rp-s';m.textContent=diff>0?`(+${ft(diff)} pótolva)`:`(${ft(-diff)} nem lett visszaforgatva)`;box.appendChild(m)}
+    box.appendChild(btn);
+    if(kids.length&&+r.out){
+      const sum=kids.reduce((t,o)=>t+(+o.amt||0),0),diff=sum-(+r.out);
+      const m=document.createElement('span');m.className='rp-s';
+      m.textContent=Math.abs(diff)<1?`✓ ${kids.length} helyre, pontosan szétosztva`:diff>0?`${kids.length} helyre, +${ft(diff)} pótolva`:`${kids.length} helyre, ${ft(-diff)} még nincs elosztva`;
+      box.appendChild(m);
     }
     subTd.appendChild(box);
   }
