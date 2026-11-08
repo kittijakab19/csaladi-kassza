@@ -1214,8 +1214,8 @@ window.__KASSZA_BOOT=function(){
     p2.hidden=!(age&&!ageOk);p2.textContent='Életkor miatt nem igényelhető';p2.className='pill neg';
     $('ckMax').textContent=ft(S.tier);$('ckA').textContent=ft(S.A);
     $('ckF').textContent=S.forgiven>0?'−'+ft(S.forgiven):'0 Ft';
-    $('ckP').textContent=ft(S.paid);$('ckI').textContent=ft(S.intPaid);
-    $('ckS').textContent=S.suspMonths?durTxt(S.suspMonths):'nincs';
+    $('ckP').textContent=ft(S.paid);$('ckI').textContent=ft(S.intPaid+S.accrued);$('ckS').title='';
+    $('ckS').textContent=S.suspMonths?`${durTxt(S.suspMonths)} (+${ft(S.accrued)} kamat)`:'nincs';
     $('ckEnd').textContent=S.endM!=null?lab(S.endM):'–';
     // részletes bontás
     const tb=$('cDetail');tb.innerHTML='';
