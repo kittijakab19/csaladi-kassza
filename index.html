@@ -283,6 +283,11 @@ table.detail tr.pause td{background:color-mix(in srgb,var(--pause) 9%,transparen
 table.detail tr.evkid td:nth-child(2) b{color:var(--kid)}
 table.detail tr.ev.warn td:nth-child(2) b{color:var(--bad)}
 table.detail tr.pay td:nth-child(4){font-weight:600}
+.box{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.pausebox{border-color:color-mix(in srgb,var(--pause) 40%,var(--line));background:color-mix(in srgb,var(--pause) 8%,var(--surface));gap:6px;font-size:13px}
+.pausebox b{font-size:14px}
+.pausebox span{color:var(--muted)}
+.pausebox strong{font-family:inherit;font-size:inherit;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -512,6 +517,7 @@ table.detail tr.pay td:nth-child(4){font-weight:600}
         <dt>Törlesztési szünet</dt><dd id="ckS">–</dd>
         <dt>Utolsó törlesztés</dt><dd id="ckEnd">–</dd>
       </dl>
+      <div class="box pausebox" id="cPauseBox" hidden></div>
       <button class="ghost" id="cToBudget" type="button">Havi törlesztő a költségvetésbe</button>
       <span class="note" id="cToBudgetMsg" aria-live="polite"></span>
       <div class="group-label">Idővonal</div>
@@ -1118,12 +1124,12 @@ window.__KASSZA_BOOT=function(){
   const CC=()=>{const c=state.csok||(state.csok=sampleCsok());c.kids=c.kids||[];return c};
   const csokTier=n=>n>=3?50000000:n===2?30000000:15000000;
   const csokDeadline=n=>n>=3?120:n===2?96:48;
-  function csokSim(){
+  function csokSim(noPause){
     const c=CC(),ex=Math.max(0,Math.round(+c.exist||0)),cm=Math.min(ex>=2?1:3,Math.max(1,Math.round(+c.commit||1)));
     const tier=csokTier(ex+cm),A=Math.min(tier,Math.max(0,+c.amount||0));
     const Nm=Math.min(25,Math.max(10,+c.term||25))*12,r=Math.min(3,Math.max(0,+c.rate||0))/100/12,start=validKey(c.start)?c.start:thisKey;
     const ann=(bal,n)=>n<=0?bal:(r?bal*r/(1-Math.pow(1+r,-n)):bal/n);
-    const kids=c.kids.filter(x=>validKey(x.k)).map(x=>({k:x.k,pause:x.pause!==false,m:mBetween(start,x.k)})).filter(x=>x.m>=0).sort((x,y)=>x.m-y.m);
+    const kids=c.kids.filter(x=>validKey(x.k)).map(x=>({k:x.k,pause:!noPause&&x.pause!==false,m:mBetween(start,x.k)})).filter(x=>x.m>=0).sort((x,y)=>x.m-y.m);
     let bal=A,rem=Nm,pay=ann(A,Nm),susp=-1,recalc=false,paid=0,intPaid=0,forgiven=0,suspMonths=0,accrued=0,cnt=0,last=null,ph=null;
     const firstPay=pay,rows=[],evs=[{m:0,type:'start'}],series=[{m:0,b:A}];
     for(let m=0;m<=900&&bal>0.5;m++){
@@ -1217,6 +1223,17 @@ window.__KASSZA_BOOT=function(){
     $('ckP').textContent=ft(S.paid);$('ckI').textContent=ft(S.intPaid+S.accrued);$('ckS').title='';
     $('ckS').textContent=S.suspMonths?`${durTxt(S.suspMonths)} (+${ft(S.accrued)} kamat)`:'nincs';
     $('ckEnd').textContent=S.endM!=null?lab(S.endM):'–';
+    {
+      const box=$('cPauseBox');
+      if(S.suspMonths>0){
+        const N0=csokSim(true),extra=S.paid-N0.paid;
+        box.hidden=false;
+        box.innerHTML=`<b>Miért fizettek többet a szünet miatt?</b>
+          <span>A szünet miatt összesen kb. <strong class="num">${ft(Math.max(0,extra))}</strong>-tal többet fizettek vissza, mint szünet nélkül (${ft(N0.paid)}).</span>
+          <span>A szünet alatt nem kell törleszteni, de a ${String(+c.rate||0).replace('.',',')}%-os kamat közben is fut. Ezt a kamatot (${ft(S.accrued)}) nem engedik el, hanem hozzáadják a tartozáshoz, és utána erre a nagyobb összegre is kamatot fizettek. A futamidő is egy évvel hosszabb lesz.</span>
+          <span>Cserébe a baba érkezése utáni évben egyáltalán nem kell fizetni, ami GYED vagy CSED idején nagy könnyebbség lehet.</span>`;
+      }else box.hidden=true;
+    }
     // részletes bontás
     const tb=$('cDetail');tb.innerHTML='';
     const tr=(cls,cells)=>{const r=document.createElement('tr');r.className=cls;r.innerHTML=cells.map(x=>`<td>${x}</td>`).join('');tb.appendChild(r)};
@@ -1226,7 +1243,7 @@ window.__KASSZA_BOOT=function(){
         const per=Math.abs(r.first-r.last)<50?r10(r.first):`${r10(r.first)} → ${r10(r.last)}`;
         tr('pay',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztés</b><span>tartozás: ${ft(r.bal0)} → ${ft(r.bal1)}</span>`,durTxt(r.months),per,ft(r.sum)]);
       }else if(r.type==='pause'){
-        tr('pause',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztési szünet</b><span>nem kell fizetni, de a kamat (${ft(r.acc)}) hozzáadódik a tartozáshoz</span>`,durTxt(r.months),'0 Ft','0 Ft']);
+        tr('pause',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztési szünet</b><span>Nem kell fizetni, de a kamat közben is fut: ${ft(r.acc)} hozzáadódik a tartozáshoz. Ezért fizettek összességében többet, mint szünet nélkül.</span>`,durTxt(r.months),'0 Ft','0 Ft']);
       }else{
         const e=r.ev;let t=`${e.n}. új gyermek születése`,sub;
         if(e.n===1)sub=e.pause?'1 év törlesztési szünetet kértek.':'Nem kértek szünetet: a törlesztés változatlanul megy tovább.';
