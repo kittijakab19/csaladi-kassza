@@ -327,7 +327,11 @@ tr.reinvested td:not(.c-st):not(.c-del){opacity:.55}
 .reinvpick .rp-s{font-size:12px;color:var(--muted)}
 .reinvpick .rp-s.ok{color:var(--good)}
 tr.reinvested + tr.subrow td{opacity:1}
-tr.grp td:first-child{box-shadow:inset 4px 0 0 var(--grp);border-radius:4px 0 0 4px}
+tr.grp td:first-child{box-shadow:inset 7px 0 0 var(--grp);border-radius:6px 0 0 6px}
+tr.grp2 td:first-child{box-shadow:none;background-image:linear-gradient(to bottom,var(--grp) 0 50%,var(--grp2) 50% 100%);background-size:7px 100%;background-repeat:no-repeat}
+tr.grp.drow td{background-color:color-mix(in srgb,var(--grp) 9%,transparent)}
+tr.grp.subrow td,tr.grp.noterow td{background-color:color-mix(in srgb,var(--grp) 9%,transparent)}
+tr.grp.drow td:first-child{padding-left:16px}
 .grpchip{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;font-style:normal;color:var(--ink);background:color-mix(in srgb,var(--grp) 22%,transparent)}
 .reinv input{accent-color:var(--accent)}
 tr.child td:first-child .namecell{padding-left:calc(var(--depth,0) * 14px)}
@@ -1602,7 +1606,7 @@ window.__KASSZA_BOOT=function(){
     grpOf=new Map();let gi=0;
     const depth=(x,g=0)=>{const ps=parentsOf(x);if(!ps.length||g>20)return 0;return 1+Math.max(...ps.map(p=>depth(p,g+1)))};
     allInv().forEach(x=>{const g={depth:depth(x)};if(isSrc(x))g.own=GRP[gi++%GRP.length];grpOf.set(x.id,g)});
-    allInv().forEach(x=>{const ps=parentsOf(x);if(ps.length){const g=grpOf.get(x.id);g.in=ps.length>1?'var(--muted)':grpOf.get(ps[0].id).own;g.from=ps[0];g.froms=ps}});
+    allInv().forEach(x=>{const ps=parentsOf(x);if(ps.length){const g=grpOf.get(x.id);g.in=grpOf.get(ps[0].id).own;if(ps.length>1)g.in2=grpOf.get(ps[ps.length-1].id).own;g.from=ps[0];g.froms=ps}});
   }
   function treeOrder(rows){
     const out=[],seen=new Set(),placed=new Set();
@@ -1692,7 +1696,7 @@ window.__KASSZA_BOOT=function(){
     o.addEventListener('input',()=>{r.out=o.value===''?null:num(o.value);upd();touchPort()});
     tr.lastElementChild.append(noteBtn(tr,r,7),delBtn(bl,r));
     {const g=grpOf.get(r.id)||{};const stripe=g.in||g.own;
-      if(stripe)[tr,sub,tr._note].forEach(n=>{n.classList.add('grp');n.style.setProperty('--grp',stripe)});
+      if(stripe)[tr,sub,tr._note].forEach(n=>{n.classList.add('grp');n.style.setProperty('--grp',stripe);if(g.in2){n.classList.add('grp2');n.style.setProperty('--grp2',g.in2)}});
       if(g.own){tr.style.setProperty('--own',g.own);sub.style.setProperty('--own',g.own)}
       if(g.depth){[tr,sub,tr._note].forEach(n=>n.style.setProperty('--depth',g.depth));tr.classList.add('child')}}
     tb.appendChild(tr);tb.appendChild(sub);tb.appendChild(tr._note);upd();
