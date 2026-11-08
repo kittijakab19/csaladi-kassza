@@ -357,6 +357,25 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
 .reinvpick .rp-x:hover{color:var(--bad)}
 .rv-edit{font-size:12px;margin-left:8px}
 .rv-sum{color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.stat3{display:flex;flex-direction:column;gap:10px}
+.stat{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--sunk)}
+.stat .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat .val{font-family:var(--display);font-size:clamp(26px,3.2vw,34px);font-weight:700;line-height:1.1}
+.stat .sub{font-size:12.5px;color:var(--muted)}
+.stat.avail{border-color:color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 8%,var(--surface))}
+.stat.avail .val{color:var(--good)}
+.stat.locked{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.stat.total .val{font-size:clamp(22px,2.6vw,28px)}
+.timeline2{display:flex;flex-direction:column}
+.timeline2>div{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:2px 12px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.timeline2 .d{grid-row:1/3}.timeline2 .n{grid-column:2;grid-row:1}.timeline2 .v{grid-column:2;grid-row:2;text-align:left!important}.timeline2 .v small{display:inline!important;margin-left:6px}.timeline2 .c{grid-column:3;grid-row:1/3}
+.timeline2>div:last-child{border-bottom:0}
+.timeline2 small{display:block;font-size:11px;color:var(--muted);font-weight:500}
+.timeline2 .d{white-space:nowrap}
+.timeline2 .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.timeline2 .v{color:var(--good);font-weight:600;text-align:right;white-space:nowrap}
+.timeline2 .c{text-align:right;white-space:nowrap;font-weight:600}
 </style>
 </head>
 <body>
@@ -515,22 +534,19 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
     </div>
 
     <aside class="panel summary" aria-labelledby="h-psum"><div class="summary-inner">
-      <h2 id="h-psum">Összesen most</h2>
-      <div class="big num" id="pTotal">0 Ft</div>
-      <div class="big-sub num" id="pFuture"></div>
-      <dl class="kv num">
-        <dt>Megtakarítások</dt><dd id="pkS">0 Ft</dd>
-        <dt>Futó befektetések (befizetve)</dt><dd id="pkR">0 Ft</dd>
-        <dt>Lejárt befektetések (kivéve)</dt><dd id="pkM">0 Ft</dd>
-        <dt>Ebből eddigi hozam</dt><dd id="pkG">0 Ft</dd>
-        <dt>Várható hozam a futókon</dt><dd id="pkF" style="color:var(--muted);font-style:italic">0 Ft</dd>
-      </dl>
+      <h2 id="h-psum" class="sr-only">Összesítő</h2>
+      <div class="stat3">
+        <div class="stat avail"><span class="lbl">Elérhető most</span><span class="val num" id="pAvail">0 Ft</span><span class="sub" id="pAvailSub"></span></div>
+        <div class="stat locked"><span class="lbl">Lekötve</span><span class="val num" id="pLocked">0 Ft</span><span class="sub" id="pLockedSub"></span></div>
+        <div class="stat total"><span class="lbl">Összesen</span><span class="val num" id="pTotal">0 Ft</span><span class="sub" id="pFuture"></span></div>
+      </div>
+      <div class="group-label">Mikor válik elérhetővé</div>
+      <svg id="pAvailChart" viewBox="0 0 360 150" width="100%" role="img" aria-label="Az elérhető összeg alakulása a lejáratokkal"></svg>
+      <div class="timeline2 num" id="pUpcoming"></div>
       <div class="group-label">Megoszlás</div>
       <div class="bar" id="pBar" role="img" aria-label="Blokkok megoszlása"></div>
       <div class="legend num" id="pLegend"></div>
-      <div class="group-label">Következő lejáratok</div>
-      <div class="upcoming num" id="pUpcoming"></div>
-      <p class="note">A lejárt befektetések a kivett összeggel számítanak bele az összesbe. A még futó befektetéseknél a befizetett összeg számít, a várható hozamot dőlt betűvel, külön mutatom.</p>
+      <p class="note">Elérhető most: a megtakarítások, a lejárt (és vissza nem forgatott) befektetések kivett összege, és a lejárat nélküli befektetések. Lekötve: a még futó, lejárattal rendelkező befektetések betett összege; ezek a lejárat napján válnak elérhetővé, a hozammal együtt.</p>
     </div></aside>
   </div>
   </div>
@@ -1788,36 +1804,71 @@ window.__KASSZA_BOOT=function(){
 
   function calcPort(){
     if(!state.port)return;
-    let S=0,R=0,M=0,G=0,F=0;const per=[],up=[];
+    let S=0,R=0,M=0,G=0,F=0,NL=0;const per=[],up=[];
     port().blocks.forEach((bl,bi)=>{
       let t=0;
       bl.rows.forEach(r=>{
         if(bl.type!=='inv'){const v=+r.amt||0;t+=v;S+=v;return}
         const st=invState(r),a=+r.amt||0,o=+r.out||0;
         if(st.k==='done'&&r.reinv)return;
-        if(st.k==='done'&&st.has){t+=o;M+=o;G+=o-a}
-        else{t+=a;R+=a;if(st.k==='run'&&st.has){F+=o-a;up.push({r,o})}else if(st.k==='run')up.push({r,o:null})}
+        if(st.k==='done'){const v=st.has?o:a;t+=v;M+=v;if(st.has)G+=o-a}
+        else if(st.k==='none'){t+=a;NL+=a}
+        else{t+=a;R+=a;up.push({r,a,o:st.has?o:null});if(st.has)F+=o-a}
       });
       const el=$('bt-'+bl.id);if(el)el.textContent=ft(t);
       per.push({n:bl.name||'Névtelen blokk',v:t,c:bl.c||PAL[bi%PAL.length][0]});
     });
-    const tot=S+R+M;
+    const avail=S+M+NL,tot=avail+R;
+    $('pAvail').textContent=ft(avail);
+    $('pAvailSub').textContent=[S?`megtakarítás ${ft(S)}`:'',M?`lejárt ${ft(M)}`:'',NL?`lejárat nélküli ${ft(NL)}`:''].filter(Boolean).join(' · ')||'—';
+    $('pLocked').textContent=ft(R);
+    up.sort((x,y)=>x.r.end<y.r.end?-1:1);
+    $('pLockedSub').textContent=up.length?`${up.length} befektetés, a következő ${fd(up[0].r.end)}-án/én szabadul fel`.replace(/-án\/én/,''):'nincs lekötött befektetés';
+    if(up.length)$('pLockedSub').textContent=`${up.length} befektetésben · következő lejárat: ${fd(up[0].r.end)}`;
     $('pTotal').textContent=ft(tot);
-    $('pFuture').textContent=F>0?`A futó lejáratokkal várhatóan ${ft(tot+F)} (+${ft(F)})`:'';
-    $('pkS').textContent=ft(S);$('pkR').textContent=ft(R);$('pkM').textContent=ft(M);
-    $('pkG').textContent=(G>=0?'+':'−')+ft(Math.abs(G));$('pkF').textContent='+'+ft(Math.max(0,F));
+    $('pFuture').textContent=F>0?`lejáratkor várhatóan ${ft(tot+F)} (+${ft(F)} hozam)`:'tőke, a még nem realizált hozam nélkül';
+    // mikor válik elérhetővé: lista + lépcsős diagram
+    const u=$('pUpcoming');u.innerHTML='';
+    let cum=avail;const steps=[{d:todayISO(),v:avail}];
+    up.forEach(({r,a,o})=>{
+      const got=o===null?a:o;cum+=got;steps.push({d:r.end,v:cum});
+      const row=document.createElement('div');
+      row.innerHTML=`<span class="d">${fd(r.end)}<small>${untilText(daysUntil(r.end))}</small></span><span class="n"></span><span class="v">+${ft(got)}${o===null?'<small>tőke</small>':o>a?`<small>ebből hozam ${ft(o-a)}</small>`:''}</span><span class="c">${ft(cum)}<small>elérhető</small></span>`;
+      row.querySelector('.n').textContent=r.n||'Névtelen';u.appendChild(row);
+    });
+    if(!up.length)u.innerHTML='<p class="note">Nincs lekötött befektetés lejárati dátummal: minden pénzetek elérhető.</p>';
+    drawAvail(steps);
     const bar=$('pBar'),lg=$('pLegend');bar.innerHTML='';lg.innerHTML='';
     per.forEach(p=>{if(p.v<=0)return;const pc=tot>0?p.v/tot*100:0;
       const i=document.createElement('i');i.style.flexBasis=pc+'%';i.style.background=p.c;i.title=`${p.n}: ${ft(p.v)}`;bar.appendChild(i);
       const d=document.createElement('div');d.innerHTML=`<span class="sw" style="background:${p.c}"></span><span class="nm"></span><span>${ft(p.v)}</span><span class="pc">${fmt.format(pc)}%</span>`;
       d.querySelector('.nm').textContent=p.n;lg.appendChild(d)});
-    const u=$('pUpcoming');u.innerHTML='';
-    up.sort((x,y)=>x.r.end<y.r.end?-1:1).slice(0,6).forEach(({r,o})=>{
-      const d=document.createElement('div');
-      d.innerHTML=`<span class="d">${fd(r.end)}</span><span class="n"></span><span class="v">${o===null?'<span style="color:var(--muted);font-weight:500">összeg?</span>':ft(o)}</span>`;
-      d.querySelector('.n').textContent=(r.n||'Névtelen')+' · '+untilText(daysUntil(r.end));u.appendChild(d)});
-    if(!u.children.length)u.innerHTML='<p class="note">Nincs még futó befektetés lejárati dátummal.</p>';
     drawDonut(per,tot);
+  }
+  function drawAvail(steps){
+    const svg=$('pAvailChart');if(!svg)return;
+    const W=360,H=150,L=44,R=10,Tp=10,B=22;
+    if(steps.length<2){svg.innerHTML='';svg.style.display='none';return}
+    svg.style.display='';
+    const t0=pd(steps[0].d).getTime(),t1=Math.max(pd(steps[steps.length-1].d).getTime()+30*864e5,t0+60*864e5);
+    const x=t=>L+(t-t0)/(t1-t0)*(W-L-R),hi=Math.max(1,...steps.map(p=>p.v));
+    const st=niceStep(hi/3),top=Math.ceil(hi/st)*st,y=v=>Tp+(1-v/top)*(H-Tp-B);
+    let g='';
+    for(let v=0;v<=top+1e-9;v+=st)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${short(v)}</text>`;
+    let d=`M${x(t0)},${y(steps[0].v)}`;
+    steps.slice(1).forEach(p=>{const tx=x(pd(p.d).getTime());d+=`H${tx}V${y(p.v)}`});
+    d+=`H${x(t1)}`;
+    g+=`<path d="${d}V${y(0)}H${x(t0)}Z" fill="var(--good)" fill-opacity=".15"/><path d="${d}" fill="none" stroke="var(--good)" stroke-width="2"/>`;
+    steps.slice(1).forEach(p=>{g+=`<circle cx="${x(pd(p.d).getTime())}" cy="${y(p.v)}" r="3.5" fill="var(--good)"/>`});
+    const ms=[...new Set(steps.map(p=>p.d.slice(0,7)))];
+    const first=pd(steps[0].d),last=new Date(t1),span=(last-first)/864e5;
+    const every=span>900?12:span>400?6:span>150?3:1;
+    for(let dt=new Date(first.getFullYear(),first.getMonth()+1,1);dt<=last;dt=new Date(dt.getFullYear(),dt.getMonth()+every,1)){
+      const lbl=every>=12?String(dt.getFullYear()):HU[dt.getMonth()].slice(0,3)+'.'+(dt.getMonth()===0?" '"+String(dt.getFullYear()).slice(2):'');
+      g+=`<text x="${x(dt.getTime())}" y="${H-6}" text-anchor="middle">${lbl}</text>`;
+    }
+    g+=`<text x="${x(t0)+2}" y="${H-6}" text-anchor="start" style="fill:var(--ink);font-weight:600">ma</text>`;
+    svg.innerHTML=g;
   }
   function drawDonut(per,tot){
     const svg=$('pDonut'),lg=$('pDonutLegend');
