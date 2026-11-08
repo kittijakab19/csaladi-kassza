@@ -155,7 +155,7 @@ input.block-name:focus{background:var(--surface);border-color:var(--accent)}
 @media (max-width:900px){#view-megtakaritas .grid{grid-template-columns:1fr}}
 tr.subrow td{padding:0 4px 8px 26px;font-size:12.5px;color:var(--muted)}
 tr.subrow .pend{opacity:.85;font-style:italic}
-tr.subrow .done{color:var(--good);font-style:normal}
+tr.subrow .done{color:var(--muted);font-style:normal}
 .st{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
 .st.run{background:var(--accent-soft);color:var(--accent)}
 .st.done{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
@@ -327,10 +327,10 @@ tr.reinvested td:not(.c-st):not(.c-del){opacity:.55}
 .reinvpick .rp-s{font-size:12px;color:var(--muted)}
 .reinvpick .rp-s.ok{color:var(--good)}
 tr.reinvested + tr.subrow td{opacity:1}
-tr.grp td:first-child{box-shadow:inset 7px 0 0 var(--grp);border-radius:6px 0 0 6px}
-tr.grp2 td:first-child{box-shadow:none;background-image:linear-gradient(to bottom,var(--grp) 0 50%,var(--grp2) 50% 100%);background-size:7px 100%;background-repeat:no-repeat}
+tr.grp.drow td:first-child{box-shadow:inset 7px 0 0 var(--grp);border-radius:6px 0 0 6px}
+tr.grp2.drow td:first-child{box-shadow:none;background-image:linear-gradient(to bottom,var(--grp) 0 50%,var(--grp2) 50% 100%);background-size:7px 100%;background-repeat:no-repeat}
 tr.grp.drow td{background-color:color-mix(in srgb,var(--grp) 9%,transparent)}
-tr.grp.subrow td,tr.grp.noterow td{background-color:color-mix(in srgb,var(--grp) 9%,transparent)}
+tr.grp.subrow td,tr.grp.noterow td{background:none!important;box-shadow:none!important}
 tr.grp.drow td:first-child{padding-left:16px}
 .grpchip{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;font-style:normal;color:var(--ink);background:color-mix(in srgb,var(--grp) 22%,transparent)}
 .reinv input{accent-color:var(--accent)}
