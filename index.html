@@ -314,19 +314,22 @@ select{font:inherit;color:var(--ink);background:var(--sunk);border:1px solid var
 #wCompare b{color:var(--ink)}
 .reinv{display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--muted);margin-top:4px;cursor:pointer;white-space:nowrap}
 .reinv input{width:13px;height:13px;accent-color:var(--pause)}
-.st.reinvst{background:color-mix(in srgb,var(--pause) 16%,transparent);color:var(--pause)}
+.st.reinvst{background:color-mix(in srgb,var(--grp,var(--muted)) 18%,transparent);color:var(--ink)}
 tr.reinvested td:not(.c-st):not(.c-del){opacity:.55}
-.reinvtxt{color:var(--pause)}
-.reinvlink{margin-top:4px;color:var(--pause);font-size:12.5px;font-weight:600}
 .reinvpick{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:6px}
-.reinvpick .rp-l{font-size:12px;font-weight:600;color:var(--pause);margin-right:2px}
+.reinvpick .rp-l{font-size:12px;font-weight:600;color:var(--muted);margin-right:2px}
 .reinvpick .rp-n{font-size:12px;color:var(--muted)}
 .reinvpick .rp-c{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 6px;font-size:12px;color:var(--ink);background:var(--surface);cursor:pointer;font-style:normal}
-.reinvpick .rp-c:has(input:checked){border-color:var(--pause);background:color-mix(in srgb,var(--pause) 12%,var(--surface))}
-.reinvpick .rp-c input{width:13px;height:13px;accent-color:var(--pause)}
-.reinvpick .rp-s{flex-basis:100%;font-size:12px;color:var(--muted)}
+.reinvpick .rp-c:has(input:checked){border-color:var(--grp,var(--accent));background:color-mix(in srgb,var(--grp,var(--accent)) 14%,var(--surface))}
+.reinvpick .rp-c.sel{border-color:var(--grp,var(--accent));background:color-mix(in srgb,var(--grp,var(--accent)) 14%,var(--surface));padding:3px 10px}
+.reinvpick .rp-b{font-size:12px}
+.reinvpick .rp-c input{width:13px;height:13px;accent-color:var(--grp,var(--accent))}
+.reinvpick .rp-s{font-size:12px;color:var(--muted)}
 .reinvpick .rp-s.ok{color:var(--good)}
 tr.reinvested + tr.subrow td{opacity:1}
+tr.grp td:first-child{box-shadow:inset 4px 0 0 var(--grp);border-radius:4px 0 0 4px}
+.grpchip{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;font-style:normal;color:var(--ink);background:color-mix(in srgb,var(--grp) 22%,transparent)}
+.reinv input{accent-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -1565,7 +1568,17 @@ window.__KASSZA_BOOT=function(){
   const uidp=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   function touchPort(){state.example=false;save();calcPort();$('exampleTag').hidden=!state.example}
 
+  const GRP=['#D65C94','#2BA59B','#E2A93B','#4C7BD9','#EE8640','#8F6AD8'];
+  let grpOf=new Map(),reinvEdit=new Set();
+  function computeGroups(){
+    grpOf=new Map();let gi=0;
+    allInv().filter(x=>x.reinv&&invState(x).k==='done').forEach(x=>{
+      const c=GRP[gi++%GRP.length];grpOf.set(x.id,{c,role:'src'});
+      (x.reinvTo||[]).forEach(id=>{if(!grpOf.has(id))grpOf.set(id,{c,role:'dst',from:x})});
+    });
+  }
   function renderPort(){
+    computeGroups();
     const wrap=$('blocks');wrap.innerHTML='';
     port().blocks.forEach((bl,bi)=>wrap.appendChild(blockEl(bl,bi)));
     calcPort();
@@ -1633,42 +1646,45 @@ window.__KASSZA_BOOT=function(){
     const [n,sd,a,ed,o]=tr.querySelectorAll('input');
     n.value=r.n;sd.value=r.start||'';a.value=r.amt||'';ed.value=r.end||'';o.value=(r.out===null||r.out===undefined)?'':r.out;
     const upd=()=>{updInv(r,tr.querySelector('.st'),sub.firstElementChild);const rl=tr.querySelector('.reinv'),st=invState(r);rl.hidden=st.k!=='done';tr.classList.toggle('reinvested',st.k==='done'&&!!r.reinv)};
-    {const rc=tr.querySelector('.reinv input');rc.checked=!!r.reinv;rc.addEventListener('change',()=>{r.reinv=rc.checked;upd();touchPort()})}
+    {const rc=tr.querySelector('.reinv input');rc.checked=!!r.reinv;rc.addEventListener('change',()=>{r.reinv=rc.checked;if(r.reinv&&!(r.reinvTo||[]).length)reinvEdit.add(r.id);touchPort();renderPort()})}
     n.addEventListener('input',()=>{r.n=n.value;touchPort()});
     sd.addEventListener('input',()=>{r.start=sd.value;upd();touchPort()});
     a.addEventListener('input',()=>{r.amt=num(a.value);upd();touchPort()});
     ed.addEventListener('input',()=>{r.end=ed.value;upd();touchPort()});
     o.addEventListener('input',()=>{r.out=o.value===''?null:num(o.value);upd();touchPort()});
     tr.lastElementChild.append(noteBtn(tr,r,7),delBtn(bl,r));
+    {const g=grpOf.get(r.id);if(g){[tr,sub,tr._note].forEach(n=>{n.classList.add('grp');n.style.setProperty('--grp',g.c)})}}
     tb.appendChild(tr);tb.appendChild(sub);tb.appendChild(tr._note);upd();
     tr._sub=sub;sortable(tr,bl.rows,r,null,()=>{touchPort();renderPort()});
   }
   function updInv(r,stEl,subTd){updInvBase(r,stEl,subTd);decorateReinv(r,subTd)}
   const allInv=()=>port().blocks.filter(b=>b.type==='inv').flatMap(b=>b.rows);
   function decorateReinv(r,subTd){
-    // ide forgattak vissza más befektetésből
-    const src=allInv().filter(x=>x!==r&&x.reinv&&(x.reinvTo||[]).includes(r.id));
-    if(src.length){const d=document.createElement('div');d.className='reinvlink';d.textContent='↩ Ide forgattátok vissza: '+src.map(x=>`${x.n||'Névtelen'}${+x.out?' ('+ft(+x.out)+')':''}`).join(', ');subTd.appendChild(d)}
-    // innen hová
+    const g=grpOf.get(r.id);
+    if(g&&g.role==='dst'){const d=document.createElement('span');d.className='grpchip';d.textContent='↩ innen: '+(g.from.n||'Névtelen');subTd.prepend(d)}
     if(!(invState(r).k==='done'&&r.reinv))return;
     const opts=allInv().filter(x=>x!==r);
-    const box=document.createElement('div');box.className='reinvpick';
-    const lbl=document.createElement('span');lbl.className='rp-l';lbl.textContent='Hová forgattátok vissza?';box.appendChild(lbl);
-    if(!opts.length){const n=document.createElement('span');n.className='rp-n';n.textContent='Előbb vedd fel az új befektetést egy új sorban, utána itt kiválaszthatod.';box.appendChild(n);subTd.appendChild(box);return}
     r.reinvTo=(r.reinvTo||[]).filter(id=>opts.some(o=>o.id===id));
-    opts.forEach(o=>{
-      const c=document.createElement('label');c.className='rp-c';
-      c.innerHTML=`<input type="checkbox"><span></span>`;
-      c.querySelector('span').textContent=`${o.n||'Névtelen'} · ${ft(+o.amt||0)}`;
-      const cb=c.querySelector('input');cb.checked=r.reinvTo.includes(o.id);
-      cb.addEventListener('change',()=>{r.reinvTo=cb.checked?[...r.reinvTo,o.id]:r.reinvTo.filter(id=>id!==o.id);touchPort();renderPort()});
-      box.appendChild(c);
+    const editing=reinvEdit.has(r.id)||!r.reinvTo.length;
+    const box=document.createElement('div');box.className='reinvpick';
+    if(!opts.length){box.innerHTML='<span class="rp-n">Előbb vedd fel az új befektetést egy új sorban, utána itt kiválaszthatod.</span>';subTd.appendChild(box);return}
+    const lbl=document.createElement('span');lbl.className='rp-l';lbl.textContent=editing?'Hová forgattátok vissza?':'→';box.appendChild(lbl);
+    (editing?opts:opts.filter(o=>r.reinvTo.includes(o.id))).forEach(o=>{
+      const on=r.reinvTo.includes(o.id);
+      if(editing){
+        const c=document.createElement('label');c.className='rp-c';
+        c.innerHTML='<input type="checkbox"><span></span>';c.querySelector('span').textContent=o.n||'Névtelen';
+        const cb=c.querySelector('input');cb.checked=on;
+        cb.addEventListener('change',()=>{r.reinvTo=cb.checked?[...r.reinvTo,o.id]:r.reinvTo.filter(id=>id!==o.id);touchPort();computeGroups();renderPort()});
+        box.appendChild(c);
+      }else{const c=document.createElement('span');c.className='rp-c sel';c.textContent=o.n||'Névtelen';box.appendChild(c)}
     });
-    if(r.reinvTo.length){
-      const sum=opts.filter(o=>r.reinvTo.includes(o.id)).reduce((t,o)=>t+(+o.amt||0),0),out=+r.out||0,diff=sum-out;
-      const m=document.createElement('span');m.className='rp-s '+(Math.abs(diff)<1?'ok':'');
-      m.textContent=!out?`A kiválasztottakba összesen ${ft(sum)}-ot tettetek be.`:Math.abs(diff)<1?`✓ A kivett ${ft(out)} pontosan szét van osztva.`:diff>0?`A kiválasztottakba ${ft(sum)}-ot tettetek, ${ft(diff)}-tal többet, mint amennyit kivettetek (pótoltatok hozzá).`:`A kiválasztottakba ${ft(sum)} került, a kivett összegből ${ft(-diff)} nem lett visszaforgatva.`;
-      box.appendChild(m);
+    const btn=document.createElement('button');btn.type='button';btn.className='linkbtn rp-b';
+    btn.textContent=editing?(r.reinvTo.length?'Kész':''):'módosítás';
+    if(btn.textContent){btn.addEventListener('click',()=>{editing?reinvEdit.delete(r.id):reinvEdit.add(r.id);renderPort()});box.appendChild(btn)}
+    if(r.reinvTo.length&&+r.out){
+      const sum=opts.filter(o=>r.reinvTo.includes(o.id)).reduce((t,o)=>t+(+o.amt||0),0),diff=sum-(+r.out);
+      if(Math.abs(diff)>=1){const m=document.createElement('span');m.className='rp-s';m.textContent=diff>0?`(+${ft(diff)} pótolva)`:`(${ft(-diff)} nem lett visszaforgatva)`;box.appendChild(m)}
     }
     subTd.appendChild(box);
   }
@@ -1679,7 +1695,7 @@ window.__KASSZA_BOOT=function(){
       subTd.innerHTML=`<span>A befizetett ${ft(a)} összeggel számolok. Ha van lejárata, add meg, és kiszámolom a várható hozamot.</span>`;return}
     const days=daysUntil(r.end);
     if(st.k==='done'&&r.reinv){stEl.className='st reinvst';stEl.textContent='Visszaforgatva';
-      subTd.innerHTML=`<span class="reinvtxt">Lejárt (${fd(r.end)}), és a ${st.has?ft(o)+' ':''}kivett összeget visszaforgattátok egy új befektetésbe${st.has?` (${gain>=0?'+':'−'}${ft(Math.abs(gain))} hozam${annTxt})`:''}. Ez a sor már nem számít bele az összesbe, mert a pénz az új befektetés(ek)ben van.</span>`;return}
+      subTd.innerHTML=`<span>Lejárt (${fd(r.end)})${st.has?', '+ft(o):''}, visszaforgatva, ezért nem számít bele az összesbe.</span>`;return}
     if(st.k==='done'){stEl.className='st done';stEl.textContent='Lejárt';
       subTd.innerHTML=st.has?`<span class="done">Lejárt (${fd(r.end)}): ${ft(o)} hozzáadva az összeshez (${gain>=0?'+':'−'}${ft(Math.abs(gain))} hozam${annTxt}).</span>`
         :`<span>Lejárt (${fd(r.end)}). Írd be, mennyit vettetek ki, és hozzáadom az összeshez. Addig a betett összeggel számolok.</span>`;return}
