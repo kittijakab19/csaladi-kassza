@@ -546,7 +546,7 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
       <div class="group-label">Megoszlás</div>
       <div class="bar" id="pBar" role="img" aria-label="Blokkok megoszlása"></div>
       <div class="legend num" id="pLegend"></div>
-      <p class="note">Elérhető most: a megtakarítások, a lejárt (és vissza nem forgatott) befektetések kivett összege, és a lejárat nélküli befektetések. Lekötve: a még futó, lejárattal rendelkező befektetések betett összege; ezek a lejárat napján válnak elérhetővé, a hozammal együtt.</p>
+      <p class="note">Elérhető most: a megtakarítások, a lejárt (és vissza nem forgatott) befektetések kivett összege, és a lejárat nélküli befektetések. Lekötve: azok a még futó befektetések, amelyeknél meg van adva a befektetés napja, a betett összeg és a lejárat napja; ezek a lejárat napján válnak elérhetővé, a hozammal együtt.</p>
     </div></aside>
   </div>
   </div>
@@ -1813,14 +1813,15 @@ window.__KASSZA_BOOT=function(){
         if(st.k==='done'&&r.reinv)return;
         if(st.k==='done'){const v=st.has?o:a;t+=v;M+=v;if(st.has)G+=o-a}
         else if(st.k==='none'){t+=a;NL+=a}
-        else{t+=a;R+=a;if(a>0||(st.has&&o>0)){up.push({r,a,o:st.has?o:null});if(st.has)F+=o-a}}
+        else if(r.start&&a>0&&r.end){t+=a;R+=a;up.push({r,a,o:st.has?o:null});if(st.has)F+=o-a}
+        else{t+=a;NL+=a}
       });
       const el=$('bt-'+bl.id);if(el)el.textContent=ft(t);
       per.push({n:bl.name||'Névtelen blokk',v:t,c:bl.c||PAL[bi%PAL.length][0]});
     });
     const avail=S+M+NL,tot=avail+R;
     $('pAvail').textContent=ft(avail);
-    $('pAvailSub').textContent=[S?`megtakarítás ${ft(S)}`:'',M?`lejárt ${ft(M)}`:'',NL?`lejárat nélküli ${ft(NL)}`:''].filter(Boolean).join(' · ')||'—';
+    $('pAvailSub').textContent=[S?`megtakarítás ${ft(S)}`:'',M?`lejárt ${ft(M)}`:'',NL?`lejárat nélküli / hiányos adatú ${ft(NL)}`:''].filter(Boolean).join(' · ')||'—';
     $('pLocked').textContent=ft(R);
     up.sort((x,y)=>x.r.end<y.r.end?-1:1);
     $('pLockedSub').textContent=up.length?`${up.length} befektetés, a következő ${fd(up[0].r.end)}-án/én szabadul fel`.replace(/-án\/én/,''):'nincs lekötött befektetés';
