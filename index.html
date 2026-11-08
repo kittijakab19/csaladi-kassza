@@ -336,7 +336,7 @@ table.detail tr.pay td:nth-child(4){font-weight:600}
       <li><a class="step on" href="#koltsegvetes" data-v="koltsegvetes"><b>1</b>Havi költségvetés</a></li>
       <li><a class="step" href="#megtakaritas" data-v="megtakaritas"><b>2</b>Megtakarítás / befektetés</a></li>
       <li><a class="step" href="#babavaro" data-v="babavaro"><b>3</b>Babaváró</a></li>
-      <li><span class="step off"><b>4</b>CSOK Plusz <small>· következik</small></span></li>
+      <li><a class="step" href="#csok" data-v="csok"><b>4</b>CSOK Plusz</a></li>
       <li><span class="step off"><b>5</b>Összesítő <small>· következik</small></span></li>
     </ol>
     <div class="toolbar" id="syncBar">
@@ -460,6 +460,67 @@ table.detail tr.pay td:nth-child(4){font-weight:600}
   </div>
   </div>
 
+  <div class="view" id="view-csok" hidden>
+  <div class="grid">
+    <div class="col">
+      <section class="panel" aria-labelledby="h-cform">
+        <div class="panel-head"><h2 id="h-cform">A hitel adatai</h2></div>
+        <div class="form">
+          <div class="field"><label for="cExist">Meglévő gyermekek száma</label><input type="number" inputmode="numeric" min="0" max="10" step="1" id="cExist"><span class="help">Az igényléskor már megszületett gyermekek.</span></div>
+          <div class="field"><label for="cCommit">Vállalt gyermekek száma</label><input type="number" inputmode="numeric" min="1" max="3" step="1" id="cCommit"><span class="help" id="cCommitHelp"></span></div>
+          <div class="field"><label for="cAmount">Hitelösszeg</label><div class="suffix"><input type="number" inputmode="numeric" min="0" step="500000" id="cAmount"><span>Ft</span></div><span class="help" id="cAmountHelp"></span></div>
+          <div class="field"><label for="cTerm">Futamidő</label><div class="suffix"><input type="number" inputmode="numeric" min="10" max="25" step="1" id="cTerm"><span>év</span></div><span class="help">10–25 év.</span></div>
+          <div class="field"><label for="cRate">Kamat</label><div class="suffix"><input type="number" inputmode="decimal" min="0" max="3" step="0.01" id="cRate"><span>%</span></div><span class="help">Legfeljebb 3%, fix a futamidő végéig.</span></div>
+          <div class="field"><label for="cStart">Folyósítás hónapja</label><input type="month" id="cStart"></div>
+          <div class="field"><label for="cAge">Feleség életkora az igényléskor</label><div class="suffix"><input type="number" inputmode="numeric" min="18" max="60" step="1" id="cAge"><span>év</span></div><span class="help" id="cAgeHelp"></span></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-ckids">
+        <div class="panel-head"><h2 id="h-ckids">Gyermekek a hitelfelvétel után</h2><span class="note">születés vagy várható születés hónapja</span></div>
+        <div class="kids" id="cKids"></div>
+        <button class="add" id="cAddKid" type="button">+ Gyermek hozzáadása</button>
+        <p class="note">Csak a hitelfelvétel után született gyermekek számítanak. Az első után 1 év törlesztési szünet kérhető, a második és minden további után 10 millió Ft tartozást engednek el.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-cdet">
+        <div class="panel-head"><h2 id="h-cdet">Részletes bontás</h2><span class="note num" id="cDetailSum"></span></div>
+        <div class="tablewrap"><table class="detail">
+          <thead><tr><th>Időszak</th><th>Mi történik</th><th>Időtartam</th><th>Havi fizetés</th><th>Összesen</th></tr></thead>
+          <tbody id="cDetail" class="num"></tbody>
+        </table></div>
+        <p class="note">A törlesztő annuitásos: havonta ugyanannyi, ebből egyre kevesebb a kamat és egyre több a tőke. A szünet alatt a kamat nem vész el, hozzáadódik a tartozáshoz. Az elengedés után az eredeti futamidő marad, ezért a havi törlesztő csökken.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-cchart">
+        <div class="panel-head"><h2 id="h-cchart">Így csökken a tartozás</h2>
+          <div class="chart-legend"><span><i style="background:var(--accent)"></i>Fennálló tartozás</span><span><i style="background:var(--pause);opacity:.35"></i>Törlesztési szünet</span><span><i style="background:var(--kid);width:10px;height:10px;border-radius:50%"></i>Gyermek születése</span></div></div>
+        <svg id="cChart" viewBox="0 0 640 240" width="100%" role="img" aria-label="A fennálló tartozás alakulása"></svg>
+      </section>
+    </div>
+
+    <aside class="panel summary" aria-labelledby="h-csum"><div class="summary-inner">
+      <h2 id="h-csum">Havi törlesztő</h2>
+      <div class="big num" id="cMonthly">0 Ft</div>
+      <div class="pills"><span class="pill" id="cPill1">–</span><span class="pill" id="cPill2" hidden></span></div>
+      <dl class="kv num">
+        <dt>Igényelhető legfeljebb</dt><dd id="ckMax">–</dd>
+        <dt>Hitelösszeg</dt><dd id="ckA">–</dd>
+        <dt>Elengedett tartozás</dt><dd id="ckF" style="color:var(--good)">–</dd>
+        <dt>Ténylegesen visszafizeted</dt><dd id="ckP">–</dd>
+        <dt>Ebből kamat</dt><dd id="ckI">–</dd>
+        <dt>Törlesztési szünet</dt><dd id="ckS">–</dd>
+        <dt>Utolsó törlesztés</dt><dd id="ckEnd">–</dd>
+      </dl>
+      <button class="ghost" id="cToBudget" type="button">Havi törlesztő a költségvetésbe</button>
+      <span class="note" id="cToBudgetMsg" aria-live="polite"></span>
+      <div class="group-label">Idővonal</div>
+      <ol class="timeline" id="cTimeline"></ol>
+      <p class="note">A számítás a 2026-ban érvényes CSOK Plusz-szabályokon alapul, egyszerűsítve. A pontos törlesztőt, a díjakat és a feltételeket a bankod adja meg.</p>
+    </div></aside>
+  </div>
+  </div>
+
   <div class="view" id="view-babavaro" hidden>
   <div class="grid">
     <div class="col">
@@ -545,6 +606,7 @@ window.__KASSZA_BOOT=function(){
   const BASE_SAV=[['Vésztartalék',50000],['Lakáscél / önerő',60000],['Nyugdíj-előtakarékosság',20000],['Állampapír, befektetés',0]];
   const zero=b=>b.map(([n])=>[n,0]);
   function mk(base,acts){return base.map(([n,p],i)=>({id:++uid,n,plan:p,act:acts?acts[i]:null}))}
+  function sampleCsok(){return {exist:0,commit:2,amount:30000000,term:25,rate:3,start:thisKey,age:30,kids:[{k:shift(thisKey,20),pause:true},{k:shift(thisKey,56),pause:true}]}}
   function sampleBaba(){return {amount:11000000,term:20,start:thisKey,age:28,kids:[{k:shift(thisKey,18),pause:true}]}}
   function LAYOUT0(){return [{id:'loan',name:'Hiteltörlesztések',kind:'loan'},{id:'sav',name:'Megtakarítások',kind:'sav'}]}
   function sample(){
@@ -552,7 +614,7 @@ window.__KASSZA_BOOT=function(){
     m[k0]={inc:mk(BASE_INC,[420000,360000,0,25000]),exp:mk(BASE_EXP,[180000,61200,163400,52800,15000,18000,72500,41000]),loan:mk(BASE_LOAN,[0,35000,0]),sav:mk(BASE_SAV,[50000,60000,20000,0])};
     m[k1]={inc:mk(BASE_INC,[420000,360000,0,0]),exp:mk(BASE_EXP,[180000,58700,148900,43100,15000,18000,46300,22800]),loan:mk(BASE_LOAN,[0,35000,0]),sav:mk(BASE_SAV,[50000,40000,20000,0])};
     m[thisKey]={inc:mk(BASE_INC,[420000,360000,null,null]),exp:mk(BASE_EXP,[180000,57300,98400,31200,15000,null,38900,null]),loan:mk(BASE_LOAN,[null,35000,null]),sav:mk(BASE_SAV,[50000,null,null,null])};
-    return {months:m,sel:thisKey,example:true,port:samplePort(),layout:LAYOUT0(),baba:sampleBaba()};
+    return {months:m,sel:thisKey,example:true,port:samplePort(),layout:LAYOUT0(),baba:sampleBaba(),csok:sampleCsok()};
   }
   function samplePort(){return {blocks:[
     {id:'b1',name:'Megtakarítások',type:'sav',c:'#4C7BD9',rows:[
@@ -576,7 +638,7 @@ window.__KASSZA_BOOT=function(){
   function load(){
     try{
       const r=window.__KASSZA_RAW;
-      if(r){const s=JSON.parse(r);if(!s.port||!Array.isArray(s.port.blocks)){s.port=samplePort()}if(!s.baba)s.baba=sampleBaba();const legacy=!Array.isArray(s.layout);if(legacy)s.layout=LAYOUT0();Object.values(s.months).forEach(mo=>{if(legacy)migrate(mo);s.layout.forEach(b=>{if(!mo[b.id])mo[b.id]=[]});[...mo.inc,...mo.exp,...s.layout.flatMap(b=>mo[b.id])].forEach(x=>x.id=++uid)});return s}
+      if(r){const s=JSON.parse(r);if(!s.port||!Array.isArray(s.port.blocks)){s.port=samplePort()}if(!s.baba)s.baba=sampleBaba();if(!s.csok)s.csok=sampleCsok();const legacy=!Array.isArray(s.layout);if(legacy)s.layout=LAYOUT0();Object.values(s.months).forEach(mo=>{if(legacy)migrate(mo);s.layout.forEach(b=>{if(!mo[b.id])mo[b.id]=[]});[...mo.inc,...mo.exp,...s.layout.flatMap(b=>mo[b.id])].forEach(x=>x.id=++uid)});return s}
       const o=null;
       if(o){const v=JSON.parse(o);const mo={
         inc:v.inc.map(x=>({id:++uid,n:x.n,plan:+x.v||0,act:null})),
@@ -587,7 +649,7 @@ window.__KASSZA_BOOT=function(){
   }
   function save(){if(window.__KASSZA_SAVE)window.__KASSZA_SAVE(JSON.stringify(state))}
 
-  function freshState(){const b=blank();b.baba=sampleBaba();b.layout=LAYOUT0();b.port={blocks:[{id:'b1',name:'Megtakarítások',type:'sav',c:'#4C7BD9',rows:[]},{id:'b2',name:'Befektetések',type:'inv',c:'#2BA59B',rows:[]}]};return b}
+  function freshState(){const b=blank();b.baba=sampleBaba();b.csok=sampleCsok();b.layout=LAYOUT0();b.port={blocks:[{id:'b1',name:'Megtakarítások',type:'sav',c:'#4C7BD9',rows:[]},{id:'b2',name:'Befektetések',type:'inv',c:'#2BA59B',rows:[]}]};return b}
   let state=load()||(window.__KASSZA_FRESH?freshState():sample());
   if(!state.months[state.sel]) state.sel=Object.keys(state.months).sort().pop()||thisKey;
 
@@ -1051,10 +1113,173 @@ window.__KASSZA_BOOT=function(){
     $('bToBudgetMsg').textContent=`Beírtam: ${labelOf(state.sel)}, „${row.n}” = ${ft(v)}.`;
   });
 
+
+  // ---------- 4. lépés: CSOK Plusz ----------
+  const CC=()=>{const c=state.csok||(state.csok=sampleCsok());c.kids=c.kids||[];return c};
+  const csokTier=n=>n>=3?50000000:n===2?30000000:15000000;
+  const csokDeadline=n=>n>=3?120:n===2?96:48;
+  function csokSim(){
+    const c=CC(),ex=Math.max(0,Math.round(+c.exist||0)),cm=Math.min(ex>=2?1:3,Math.max(1,Math.round(+c.commit||1)));
+    const tier=csokTier(ex+cm),A=Math.min(tier,Math.max(0,+c.amount||0));
+    const Nm=Math.min(25,Math.max(10,+c.term||25))*12,r=Math.min(3,Math.max(0,+c.rate||0))/100/12,start=validKey(c.start)?c.start:thisKey;
+    const ann=(bal,n)=>n<=0?bal:(r?bal*r/(1-Math.pow(1+r,-n)):bal/n);
+    const kids=c.kids.filter(x=>validKey(x.k)).map(x=>({k:x.k,pause:x.pause!==false,m:mBetween(start,x.k)})).filter(x=>x.m>=0).sort((x,y)=>x.m-y.m);
+    let bal=A,rem=Nm,pay=ann(A,Nm),susp=-1,recalc=false,paid=0,intPaid=0,forgiven=0,suspMonths=0,accrued=0,cnt=0,last=null,ph=null;
+    const firstPay=pay,rows=[],evs=[{m:0,type:'start'}],series=[{m:0,b:A}];
+    for(let m=0;m<=900&&bal>0.5;m++){
+      kids.filter(x=>x.m===m).forEach(x=>{
+        cnt++;const ev={m,type:'kid',n:cnt,pause:x.pause};
+        if(cnt===1){if(x.pause){susp=Math.max(susp,m+12);ev.until=m+12}}
+        else{const f=Math.min(10000000,bal);bal-=f;forgiven+=f;ev.f=f;ev.bal=bal;if(bal>0.5){pay=ann(bal,rem);ev.newPay=pay}}
+        evs.push(ev);rows.push({type:'event',ev});ph=null;
+      });
+      series.push({m,b:Math.max(0,bal)});
+      if(bal<=0.5)break;
+      if(m===0)continue;
+      if(m<susp){
+        const i=bal*r;bal+=i;accrued+=i;recalc=true;
+        if(!ph||ph.type!=='pause'){ph={type:'pause',from:m,to:m,months:0,acc:0};rows.push(ph)}
+        ph.to=m;ph.months++;ph.acc+=i;suspMonths++;series[series.length-1].b=bal;continue;
+      }
+      if(recalc){pay=ann(bal,rem);recalc=false}
+      const i=bal*r,pr=Math.min(pay-i,bal),p2=pr+i;
+      if(!ph||ph.type!=='pay'){ph={type:'pay',from:m,to:m,months:0,sum:0,first:p2,last:p2,bal0:bal};rows.push(ph)}
+      ph.to=m;ph.months++;ph.sum+=p2;ph.last=p2;
+      bal-=pr;rem--;paid+=p2;intPaid+=i;last=m;ph.bal1=Math.max(0,bal);
+      series[series.length-1].b=Math.max(0,bal);
+    }
+    const sRanges=rows.filter(x=>x.type==='pause').map(x=>({from:x.from,to:x.to+1}));
+    const dl=csokDeadline(cm),bornInTime=kids.filter(x=>x.m<=dl).length;
+    const endM=bal<=0.5&&last===null?evs[evs.length-1].m:(bal<=0.5&&forgiven>0&&evs[evs.length-1].m>(last||0)?evs[evs.length-1].m:last);
+    return {ex,cm,tier,A,Nm,start,kids,firstPay,paid,intPaid,forgiven,accrued,suspMonths,last,endM,evs,rows,series,sRanges,cnt,dl,bornInTime};
+  }
+  function renderCsok(){
+    const c=CC();
+    $('cExist').value=c.exist??0;$('cCommit').value=c.commit||1;$('cAmount').value=c.amount||'';$('cTerm').value=c.term||'';
+    $('cRate').value=c.rate??3;$('cStart').value=c.start||'';$('cAge').value=c.age||'';
+    renderCKids();calcCsok();
+  }
+  function renderCKids(){
+    const c=CC(),box=$('cKids');box.innerHTML='';
+    c.kids.forEach((kid,i)=>{
+      const d=document.createElement('div');d.className='kid';
+      d.innerHTML=`<b>${i+1}. új gyermek</b><input type="month" aria-label="${i+1}. új gyermek születési hónapja">${i===0?`<label class="chk"><input type="checkbox"> 1 év szünetet kérünk</label>`:'<span class="chk muted">10 millió Ft elengedés</span>'}<span class="eff"></span><button class="del" type="button" aria-label="Gyermek törlése" title="Törlés">×</button>`;
+      const inp=d.querySelector('input[type=month]');inp.value=kid.k||'';
+      inp.addEventListener('input',()=>{kid.k=inp.value;touchCsok()});
+      const cb=d.querySelector('input[type=checkbox]');
+      if(cb){cb.checked=kid.pause!==false;cb.addEventListener('change',()=>{kid.pause=cb.checked;touchCsok()})}
+      d.querySelector('.del').addEventListener('click',()=>{c.kids.splice(i,1);renderCKids();touchCsok()});
+      box.appendChild(d);
+    });
+    if(!c.kids.length)box.innerHTML='<p class="note">Még nincs új gyermek megadva. A vállalt gyermekeknek határidőn belül meg kell születniük.</p>';
+  }
+  function touchCsok(){state.example=false;save();calcCsok()}
+  const cNum=(el,min,max,round)=>{let v=nb(el.value);if(round)v=Math.round(v);if(v>max){v=max;el.value=max;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),600)}return Math.max(min,v)};
+  $('cExist').addEventListener('input',e=>{CC().exist=cNum(e.target,0,10,true);if(CC().exist>=2&&CC().commit>1){CC().commit=1;$('cCommit').value=1}touchCsok()});
+  $('cCommit').addEventListener('input',e=>{CC().commit=cNum(e.target,1,CC().exist>=2?1:3,true);touchCsok()});
+  $('cCommit').addEventListener('change',e=>{if(nb(e.target.value)<1)e.target.value=1});
+  $('cAmount').addEventListener('input',e=>{const c=CC();c.amount=cNum(e.target,0,csokTier((+c.exist||0)+(+c.commit||1)));touchCsok()});
+  $('cTerm').addEventListener('input',e=>{CC().term=cNum(e.target,0,25)||25;touchCsok()});
+  $('cTerm').addEventListener('change',e=>{let v=Math.round(nb(e.target.value));if(v<10)v=10;e.target.value=v;CC().term=v;touchCsok()});
+  $('cRate').addEventListener('input',e=>{CC().rate=cNum(e.target,0,3);touchCsok()});
+  $('cStart').addEventListener('input',e=>{CC().start=e.target.value;touchCsok()});
+  $('cAge').addEventListener('input',e=>{CC().age=nb(e.target.value);touchCsok()});
+  $('cAddKid').addEventListener('click',()=>{const c=CC();const lastK=c.kids.map(x=>x.k).filter(validKey).slice(-1)[0]||c.start||thisKey;c.kids.push({k:shift(lastK,c.kids.length?30:18),pause:true});renderCKids();touchCsok()});
+
+  function calcCsok(){
+    if($('view-csok').hidden)return;
+    const c=CC(),S=csokSim(),lab=m=>labelOf(shift(S.start,m)),r10=v=>ft(Math.round(v/10)*10);
+    $('cCommitHelp').textContent=S.ex>=2?'Két meglévő gyermek mellett legfeljebb 1 vállalható.':'Legalább 1, legfeljebb 3. Határidő: 1 gyermek 4, 2 gyermek 8, 3 gyermek 10 év.';
+    $('cAmountHelp').textContent=`${S.ex+S.cm} gyermekre legfeljebb ${ft(S.tier)}.`;
+    if(+c.amount>S.tier){c.amount=S.tier;$('cAmount').value=S.tier}
+    [...$('cKids').querySelectorAll('.kid')].forEach((row,i)=>{
+      const kid=c.kids[i],eff=row.querySelector('.eff');
+      if(!validKey(kid.k)){eff.textContent='Add meg a hónapot.';return}
+      const m=mBetween(S.start,kid.k);
+      if(m<0){eff.textContent='A hitelfelvétel előtt született, nem számít.';return}
+      const ev=S.evs.find(e=>e.type==='kid'&&e.m===m&&!e._used);
+      if(!ev){eff.textContent='A tartozás addigra már nulla.';return}
+      ev._used=true;
+      eff.textContent=ev.n===1?(ev.pause?'1 év szünet':'nincs szünet'):`−${ft(ev.f)} elengedés`;
+    });
+    S.evs.forEach(e=>delete e._used);
+    const age=+c.age||0,ageOk=age>=18&&age<41;
+    $('cAgeHelp').textContent=!age?'A feleség az igényléskor még nem töltheti be a 41. évét.':ageOk?'Rendben: 41 év alatt.':'41 évesen vagy idősebben már nem igényelhető.';
+    $('cAgeHelp').style.color=age&&!ageOk?'var(--bad)':'';
+    $('cMonthly').textContent=r10(S.firstPay);
+    const p1=$('cPill1'),p2=$('cPill2');
+    if(S.A<=0){p1.textContent='Add meg a hitelösszeget';p1.className='pill warn'}
+    else if(S.bornInTime>=S.cm){p1.textContent='A vállalás teljesül';p1.className='pill good'}
+    else{p1.textContent=`Határidőig ${S.bornInTime}/${S.cm} gyermek`;p1.className='pill neg'}
+    p2.hidden=!(age&&!ageOk);p2.textContent='Életkor miatt nem igényelhető';p2.className='pill neg';
+    $('ckMax').textContent=ft(S.tier);$('ckA').textContent=ft(S.A);
+    $('ckF').textContent=S.forgiven>0?'−'+ft(S.forgiven):'0 Ft';
+    $('ckP').textContent=ft(S.paid);$('ckI').textContent=ft(S.intPaid);
+    $('ckS').textContent=S.suspMonths?durTxt(S.suspMonths):'nincs';
+    $('ckEnd').textContent=S.endM!=null?lab(S.endM):'–';
+    // részletes bontás
+    const tb=$('cDetail');tb.innerHTML='';
+    const tr=(cls,cells)=>{const r=document.createElement('tr');r.className=cls;r.innerHTML=cells.map(x=>`<td>${x}</td>`).join('');tb.appendChild(r)};
+    tr('ev',[lab(0),`<b>Folyósítás</b><span>${ft(S.A)} hitel ${Math.min(25,Math.max(10,+c.term||25))} évre, ${String(+c.rate||0).replace('.',',')}% fix kamattal</span>`,'','','']);
+    S.rows.forEach(r=>{
+      if(r.type==='pay'){
+        const per=Math.abs(r.first-r.last)<50?r10(r.first):`${r10(r.first)} → ${r10(r.last)}`;
+        tr('pay',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztés</b><span>tartozás: ${ft(r.bal0)} → ${ft(r.bal1)}</span>`,durTxt(r.months),per,ft(r.sum)]);
+      }else if(r.type==='pause'){
+        tr('pause',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztési szünet</b><span>nem kell fizetni, de a kamat (${ft(r.acc)}) hozzáadódik a tartozáshoz</span>`,durTxt(r.months),'0 Ft','0 Ft']);
+      }else{
+        const e=r.ev;let t=`${e.n}. új gyermek születése`,sub;
+        if(e.n===1)sub=e.pause?'1 év törlesztési szünetet kértek.':'Nem kértek szünetet: a törlesztés változatlanul megy tovább.';
+        else sub=e.bal>0.5?`10 millió Ft-ot elengednek a tartozásból: −${ft(e.f)}. A maradék ${ft(e.bal)}, az új havi törlesztő kb. ${r10(e.newPay)}.`:`Elengedik a maradék ${ft(e.f)} tartozást. Nincs több törlesztés.`;
+        tr('ev evkid',[lab(e.m),`<b>${t}</b><span>${sub}</span>`,'','','']);
+      }
+    });
+    if(S.endM!=null&&S.last!=null&&S.endM===S.last)tr('ev end',[lab(S.endM),'<b>Utolsó törlesztés</b><span>A hitel teljesen visszafizetve.</span>','','','']);
+    if(S.bornInTime<S.cm)tr('ev warn',[lab(S.dl),`<b>Vállalási határidő: ${S.cm} gyermek</b><span>Eddig ${S.bornInTime} gyermek születik meg. Ha a vállalás nem teljesül, a kamattámogatást büntetőkamattal vissza kell fizetni. Ezt a bontás nem számolja.</span>`,'','','']);
+    $('cDetailSum').textContent=`Összesen visszafizettek: ${ft(S.paid)} · elengedett tartozás: ${ft(S.forgiven)}`;
+    // idővonal
+    const tl=$('cTimeline');tl.innerHTML='';
+    const add=(m,cls,title,sub)=>{const li=document.createElement('li');li.innerHTML=`<span class="d">${lab(m)}</span><span class="m ${cls}"></span><span class="t"><b></b><span></span></span>`;li.querySelector('b').textContent=title;li.querySelector('.t span').textContent=sub||'';li.dataset.m=m;tl.appendChild(li)};
+    add(0,'','Folyósítás',`${ft(S.A)}, havi kb. ${r10(S.firstPay)}`);
+    S.evs.filter(e=>e.type==='kid').forEach(e=>add(e.m,'kid',`${e.n}. új gyermek`,e.n===1?(e.pause?`1 év szünet, ${lab(e.until)}ig`:'nincs szünet'):`−${ft(e.f)} elengedés`));
+    add(S.dl,S.bornInTime>=S.cm?'good':'warn','Vállalási határidő',S.bornInTime>=S.cm?'teljesül':`${S.bornInTime}/${S.cm} gyermek`);
+    if(S.endM!=null&&S.last!=null&&S.endM===S.last)add(S.endM,'end','Utolsó törlesztés','');
+    [...tl.children].sort((p1,p2)=>p1.dataset.m-p2.dataset.m).forEach(li=>tl.appendChild(li));
+    drawCsok(S);
+  }
+  function drawCsok(S){
+    const svg=$('cChart'),W=640,H=240,L=56,R=12,Tp=14,Bm=26;
+    const N=Math.max(24,(S.endM||S.Nm)+6),x=m=>L+m/N*(W-L-R);
+    const hi=Math.max(1,...S.series.map(p=>p.b));
+    const step=niceStep(hi/4),top=Math.ceil(hi/step)*step,y=v=>Tp+(1-v/top)*(H-Tp-Bm);
+    let s='';
+    S.sRanges.forEach(r=>{const a=x(r.from),b2=x(Math.min(r.to,N));s+=`<rect x="${a}" y="${Tp}" width="${Math.max(0,b2-a)}" height="${H-Tp-Bm}" fill="var(--pause)" fill-opacity=".13"/>`});
+    for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${short(v)}</text>`;
+    const yStep=N<=72?12:N<=180?24:48;
+    for(let m=0;m<=N;m+=yStep)s+=`<text x="${x(m)}" y="${H-8}" text-anchor="middle">${shift(S.start,m).slice(0,4)}</text>`;
+    let d='';S.series.forEach((p,i)=>{d+=(i?'L':'M')+x(p.m).toFixed(1)+','+y(p.b).toFixed(1)});
+    const lastM=S.series[S.series.length-1].m;
+    s+=`<path d="${d}L${x(lastM)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent)" fill-opacity=".18"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+    S.kids.forEach((k,i)=>{if(k.m<=N)s+=`<line x1="${x(k.m)}" x2="${x(k.m)}" y1="${Tp+16}" y2="${y(0)}" stroke="var(--kid)" stroke-width="1.5" stroke-dasharray="3 3"/><circle cx="${x(k.m)}" cy="${Tp+8}" r="8" fill="var(--kid)"/><text x="${x(k.m)}" y="${Tp+11.5}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:10px">${i+1}</text>`});
+    if(S.dl<=N)s+=`<line x1="${x(S.dl)}" x2="${x(S.dl)}" y1="${Tp}" y2="${y(0)}" stroke="${S.bornInTime>=S.cm?'var(--good)':'var(--bad)'}" stroke-dasharray="4 3"/><text x="${x(S.dl)+4}" y="${y(0)-6}" style="fill:${S.bornInTime>=S.cm?'var(--good)':'var(--bad)'}">határidő</text>`;
+    svg.innerHTML=s;
+  }
+  $('cToBudget').addEventListener('click',()=>{
+    const S=csokSim(),v=Math.round(S.firstPay);
+    let blk=lay().find(b=>b.kind==='loan');
+    if(!blk){blk={id:'loan',name:'Hiteltörlesztések',kind:'loan'};state.layout.push(blk);Object.values(state.months).forEach(m=>{if(!m.loan)m.loan=[]})}
+    const list=cur()[blk.id]||(cur()[blk.id]=[]);
+    let row=list.find(r=>/csok/i.test(r.n||''));
+    if(!row){row={id:++uid,n:'CSOK Plusz törlesztés',plan:0,act:null};list.push(row)}
+    row.plan=v;renderRows();touch();
+    $('cToBudgetMsg').textContent=`Beírtam: ${labelOf(state.sel)}, „${row.n}” = ${ft(v)}.`;
+  });
+
   // ---------- 2. lépés: megtakarítás / befektetés ----------
-  const VIEWS=['koltsegvetes','megtakaritas','babavaro'];
+  const VIEWS=['koltsegvetes','megtakaritas','babavaro','csok'];
   const LEADS={
     koltsegvetes:$('lead').textContent,
+    csok:'Add meg a meglévő és a vállalt gyermekek számát, a hitel adatait és a (tervezett) születéseket. Kiszámolom a havi törlesztőt, a szünetet, az elengedést, és hogy teljesül-e a vállalás.',
     babavaro:'Add meg a hitel adatait és a (tervezett) gyermekek születési hónapját. Kiszámolom a havi törlesztőt, a törlesztési szüneteket, és hogy mennyi tartozást engednek el.',
     megtakaritas:'Vedd fel blokkonként, mitek van: sima megtakarítások és befektetések. A befektetéseknél add meg, mikor és mennyit tettetek be, mikor jár le és mennyit vesztek ki. A lejárt tételek a kivett összeggel számítanak, a futóknál a várható hozamot külön látod.'
   };
@@ -1065,7 +1290,7 @@ window.__KASSZA_BOOT=function(){
     $('lead').textContent=LEADS[v];
     const b=v==='koltsegvetes';
     $('monthSw').hidden=!b;$('btnClearMonth').hidden=!b;
-    if(!b){showConfirm(false);if(v==='megtakaritas')renderPort();else renderBaba()}
+    if(!b){showConfirm(false);if(v==='megtakaritas')renderPort();else if(v==='csok')renderCsok();else renderBaba()}
   }
   window.addEventListener('hashchange',route);
 
