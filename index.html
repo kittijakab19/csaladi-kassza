@@ -213,6 +213,18 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 #syncBar{margin-left:auto;flex-wrap:nowrap}
 @media (max-width:700px){#syncBar{order:-1;width:100%;justify-content:flex-end}}
+.donut-wrap{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:center}
+@media (max-width:560px){.donut-wrap{grid-template-columns:1fr;justify-items:center}}
+#pDonut{width:100%;max-width:220px;height:auto}
+#pDonut .seg-lbl{fill:#fff;font-size:12px;font-weight:700;font-family:var(--body)}
+#pDonut .ctr-lbl{fill:var(--muted);font-size:12px;font-family:var(--body)}
+#pDonut .ctr-val{fill:var(--ink);font-size:20px;font-weight:700;font-family:var(--display)}
+.donut-legend{display:flex;flex-direction:column;gap:10px;min-width:0;width:100%}
+.donut-legend div{display:grid;grid-template-columns:12px minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:10px;align-items:center}
+.donut-legend .sw{width:12px;height:12px;border-radius:3px;grid-column:1;grid-row:1/3}
+.donut-legend .nm{grid-column:2;grid-row:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.donut-legend .pc-big{font-family:var(--display);font-size:20px;font-weight:700;grid-column:3;grid-row:1/3}
+.donut-legend .amt{font-size:12.5px;color:var(--muted);grid-column:2;grid-row:2}
 </style>
 </head>
 <body>
@@ -372,6 +384,14 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
         <button class="add" id="addSavBlock" type="button">+ Megtakarítás blokk</button>
         <button class="add" id="addInvBlock" type="button">+ Befektetés blokk</button>
       </div>
+
+      <section class="panel" aria-labelledby="h-donut">
+        <div class="panel-head"><h2 id="h-donut">Megoszlás blokkonként</h2><span class="note">a mostani összeg alapján</span></div>
+        <div class="donut-wrap">
+          <svg id="pDonut" viewBox="0 0 220 220" role="img" aria-label="A megtakarítások és befektetések megoszlása blokkonként"></svg>
+          <div class="donut-legend num" id="pDonutLegend"></div>
+        </div>
+      </section>
     </div>
 
     <aside class="panel summary" aria-labelledby="h-psum"><div class="summary-inner">
@@ -896,6 +916,29 @@ window.__KASSZA_BOOT=function(){
       d.innerHTML=`<span class="d">${fd(r.end)}</span><span class="n"></span><span class="v">${o===null?'<span style="color:var(--muted);font-weight:500">összeg?</span>':ft(o)}</span>`;
       d.querySelector('.n').textContent=(r.n||'Névtelen')+' · '+untilText(daysUntil(r.end));u.appendChild(d)});
     if(!u.children.length)u.innerHTML='<p class="note">Nincs még futó befektetés lejárati dátummal.</p>';
+    drawDonut(per,tot);
+  }
+  function drawDonut(per,tot){
+    const svg=$('pDonut'),lg=$('pDonutLegend');
+    const items=per.filter(p=>p.v>0);
+    const C=110,R=78,SW=34,circ=2*Math.PI*R;
+    let s=`<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="var(--line)" stroke-width="${SW}"/>`;
+    let acc=0;
+    items.forEach(p=>{
+      const frac=p.v/tot,len=frac*circ;
+      s+=`<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${p.c}" stroke-width="${SW}" stroke-dasharray="${Math.max(0,len-(items.length>1?2:0))} ${circ}" stroke-dashoffset="${-acc}" transform="rotate(-90 ${C} ${C})"><title>${esc(p.n)}: ${ft(p.v)} (${fmt.format(frac*100)}%)</title></circle>`;
+      if(frac>=0.06){const a=(acc+len/2)/circ*2*Math.PI-Math.PI/2;s+=`<text x="${C+R*Math.cos(a)}" y="${C+R*Math.sin(a)+4}" text-anchor="middle" class="seg-lbl">${fmt.format(frac*100)}%</text>`}
+      acc+=len;
+    });
+    s+=`<text x="${C}" y="${C-6}" text-anchor="middle" class="ctr-lbl">Összesen</text><text x="${C}" y="${C+16}" text-anchor="middle" class="ctr-val">${tot>=1e6?new Intl.NumberFormat('hu-HU',{maximumFractionDigits:2}).format(tot/1e6)+' M Ft':ft(tot)}</text>`;
+    svg.innerHTML=s;
+    lg.innerHTML='';
+    if(!items.length){lg.innerHTML='<p class="note">Írj be összegeket a blokkokba, és itt látod, melyik blokk mekkora részt tesz ki.</p>';return}
+    items.forEach(p=>{
+      const d=document.createElement('div');
+      d.innerHTML=`<span class="sw" style="background:${p.c}"></span><span class="nm"></span><span class="pc-big">${fmt.format(p.v/tot*100)}%</span><span class="amt">${ft(p.v)}</span>`;
+      d.querySelector('.nm').textContent=p.n;lg.appendChild(d);
+    });
   }
   $('addSavBlock').addEventListener('click',()=>{port().blocks.push({id:uidp(),name:'Új megtakarítás blokk',type:'sav',rows:[{id:uidp(),n:'Új megtakarítás',amt:0}]});touchPort();renderPort();const b=port().blocks.at(-1);$('bn-'+b.id).select()});
   $('addInvBlock').addEventListener('click',()=>{port().blocks.push({id:uidp(),name:'Új befektetés blokk',type:'inv',rows:[{id:uidp(),n:'Új befektetés',start:todayISO(),amt:0,end:'',out:null}]});touchPort();renderPort();const b=port().blocks.at(-1);$('bn-'+b.id).select()});
