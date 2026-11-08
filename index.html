@@ -1826,8 +1826,8 @@ window.__KASSZA_BOOT=function(){
     up.sort((x,y)=>x.r.end<y.r.end?-1:1);
     $('pLockedSub').textContent=up.length?`${up.length} befektetés, a következő ${fd(up[0].r.end)}-án/én szabadul fel`.replace(/-án\/én/,''):'nincs lekötött befektetés';
     if(up.length)$('pLockedSub').textContent=`${up.length} befektetésben · következő lejárat: ${fd(up[0].r.end)}`;
-    $('pTotal').textContent=ft(tot);
-    $('pFuture').textContent=F>0?`lejáratkor várhatóan ${ft(tot+F)} (+${ft(F)} hozam)`:'tőke, a még nem realizált hozam nélkül';
+    $('pTotal').textContent=ft(tot+Math.max(0,F));
+    $('pFuture').textContent=`a később lejárók várható összegével együtt · ebből most elérhető ${ft(avail)}, lekötött tőke ${ft(R)}${F>0?`, várható hozam +${ft(F)}`:''}`;
     // mikor válik elérhetővé: lista + lépcsős diagram
     const u=$('pUpcoming');u.innerHTML='';
     let cum=avail;const steps=[{d:todayISO(),v:avail}];
