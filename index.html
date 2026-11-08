@@ -374,8 +374,6 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
         <dt>Kiadás összesen</dt><dd id="sExp">0 Ft</dd>
         <dt>Hiteltörlesztés összesen</dt><dd id="sLoan">0 Ft</dd>
         <dt>Megtakarítás összesen</dt><dd id="sSav">0 Ft</dd>
-        <dt>Évente félretéve</dt><dd id="sSavY">0 Ft</dd>
-        <dt>Évente marad</dt><dd id="sYear">0 Ft</dd>
       </dl>
       <div class="group-label">Kiadások megoszlása</div>
       <div class="bar" id="bar" role="img" aria-label="Kiadások megoszlása"></div>
@@ -580,8 +578,7 @@ window.__KASSZA_BOOT=function(){
 
     const inc=T.inc,exp=T.exp,sav=T.sav,loan=T.loan,bal=inc-exp-loan-sav;
     $('sInc').textContent=ft(inc);$('sExp').textContent=ft(exp);$('sLoan').textContent=ft(loan);
-    $('sSav').textContent=ft(sav);$('sSavY').textContent=ft(sav*12);
-    $('sYear').textContent=ft(bal*12);
+    $('sSav').textContent=ft(sav);
     const b=$('balance');b.textContent=(bal>0?'+':'')+ft(bal);
     b.className='big num '+(bal>0?'pos':bal<0?'neg':'');
     const pill=$('ratePill'),rate=inc>0?sav/inc*100:0;
