@@ -234,6 +234,8 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
 :root[data-theme="dark"] .themebtn .i-sun{display:block}
 :root[data-theme="dark"] .themebtn .i-moon{display:none}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .themebtn .i-sun{display:block}:root:not([data-theme="light"]) .themebtn .i-moon{display:none}}
+.analysis{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.analysis li{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -366,7 +368,7 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
       <div class="group-label">Kiadások megoszlása</div>
       <div class="bar" id="bar" role="img" aria-label="Kiadások megoszlása"></div>
       <div class="legend num" id="legend"></div>
-      <p class="hint" id="hint"></p>
+      <div class="hint" id="hint"></div>
       <p class="note">A „Hó végén marad” a bevételből levonja a kiadásokat, a hiteltörlesztéseket és a megtakarításokat. Ahol már beírtad a tényleges összeget, azzal számol, máshol a tervvel. Az adatok csak ebben a böngészőben maradnak meg.</p>
     </div></aside>
   </div>
@@ -595,12 +597,33 @@ window.__KASSZA_BOOT=function(){
     });
 
     const dti=inc>0?loan/inc*100:0;
-    let h;
-    if(inc<=0) h='Kezdd a bevételekkel: mindkét fél nettó fizetése, családi pótlék, egyéb rendszeres bevétel.';
-    else if(bal<0) h='A kiadások, a hitelek és a megtakarítások együtt meghaladják a bevételt. Csökkentsd a legnagyobb kiadást, vagy tegyél félre kevesebbet.';
-    else if(dti>50) h=`A hiteltörlesztés a bevétel ${fmt.format(dti)}%-a. A bankok új hitelnél jellemzően ennél alacsonyabb arányt engednek.`;
-    else h=`Havi ${ft(sav)} megtakarítással egy év alatt ${ft(sav*12)} gyűlik össze, és havonta még ${ft(bal)} marad szabadon. A 2. lépésben ebből tervezünk megtakarítási célt.`;
-    $('hint').textContent=h;
+    {
+      const pts=[];
+      if(inc<=0) pts.push('Kezdd a bevételekkel: nettó fizetések, családi pótlék, egyéb rendszeres bevétel.');
+      else{
+        // legnagyobb kiadás
+        const expRows=[...mo.exp,...listsOf(mo,'exp').flat()].map(r=>({n:r.n||'Névtelen tétel',v:T.eff(r)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+        if(expRows.length&&exp>0) pts.push(`A legnagyobb kiadás: ${expRows[0].n}, a kiadások ${fmt.format(expRows[0].v/exp*100)}%-a.`);
+        // tervtől eltérés
+        const outRows=[...mo.exp,...lay().filter(b=>b.kind!=='sav').flatMap(b=>mo[b.id]||[])].filter(has);
+        const over=outRows.filter(r=>(+r.act||0)>(+r.plan||0)),overSum=over.reduce((s2,r)=>s2+(+r.act||0)-(+r.plan||0),0);
+        if(outRows.length) pts.push(over.length?`${over.length} tételnél lépted túl a tervet, összesen ${ft(overSum)}-tal.`:'Ahol már van tényleges összeg, minden a terven belül maradt.');
+        // megtakarítási arány
+        const rate=sav/inc*100;
+        if(bal<0) pts.push(`Ebben a hónapban ${ft(-bal)} hiányzik. A legnagyobb kiadásnál vagy a megtakarításnál érdemes faragni.`);
+        else pts.push(`A bevétel ${fmt.format(rate)}%-át teszitek félre${rate>=20?', ez nagyon jó arány.':rate>=10?', ez jó arány.':'. 10% fölött már biztos tartalék épül.'}`);
+        if(dti>35) pts.push(`A hiteltörlesztés a bevétel ${fmt.format(dti)}%-a${dti>50?', ez magas: új hitelnél a bankok ennél kevesebbet engednek.':'.'}`);
+        // előző hónap
+        const prevKey=shift(state.sel,-1);
+        if(state.months[prevKey]){const P=totals(state.months[prevKey]),pb=P.inc-P.exp-P.loan-P.sav,d=bal-pb;
+          if(Math.abs(d)>=1000) pts.push(`Az előző hónaphoz képest ${ft(Math.abs(d))}-tal ${d>0?'több':'kevesebb'} marad.`)}
+      }
+      const hEl=$('hint');hEl.innerHTML='';
+      const ul=document.createElement('ul');ul.className='analysis';
+      pts.slice(0,4).forEach(t=>{const li=document.createElement('li');li.textContent=t;ul.appendChild(li)});
+      const lbl=document.createElement('div');lbl.className='group-label';lbl.textContent='Rövid elemzés';
+      hEl.append(lbl,ul);
+    }
 
     history();
     $('exampleTag').hidden=!state.example;
