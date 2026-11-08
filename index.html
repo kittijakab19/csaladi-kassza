@@ -264,6 +264,7 @@ input[type=month]:focus{border-color:var(--accent);outline:none;background:var(-
 .chart-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .chart-legend span{display:inline-flex;align-items:center;gap:6px}
 .chart-legend i{display:inline-block;width:12px;height:8px;border-radius:3px}
+input.flash{border-color:var(--warn)!important;background:color-mix(in srgb,var(--warn) 12%,var(--surface))!important}
 </style>
 </head>
 <body>
@@ -447,8 +448,8 @@ input[type=month]:focus{border-color:var(--accent);outline:none;background:var(-
       <section class="panel" aria-labelledby="h-bform">
         <div class="panel-head"><h2 id="h-bform">A hitel adatai</h2></div>
         <div class="form">
-          <div class="field"><label for="bAmount">Hitelösszeg</label><div class="suffix"><input type="number" inputmode="numeric" min="0" max="11000000" step="100000" id="bAmount"><span>Ft</span></div><span class="help">Legfeljebb 11 000 000 Ft.</span></div>
-          <div class="field"><label for="bTerm">Futamidő</label><div class="suffix"><input type="number" inputmode="numeric" min="5" max="20" step="1" id="bTerm"><span>év</span></div><span class="help">5–20 év. 20 évnél a törlesztő a legkisebb.</span></div>
+          <div class="field"><label for="bAmount">Hitelösszeg</label><div class="suffix"><input type="number" inputmode="numeric" min="0" max="11000000" step="100000" id="bAmount"><span>Ft</span></div><span class="help">Legfeljebb 11 000 000 Ft, ennél többet nem enged beírni.</span></div>
+          <div class="field"><label for="bTerm">Futamidő</label><div class="suffix"><input type="number" inputmode="numeric" min="5" max="20" step="1" id="bTerm"><span>év</span></div><span class="help">5–20 év (20-nál többet nem enged). 20 évnél a törlesztő a legkisebb.</span></div>
           <div class="field"><label for="bStart">Folyósítás hónapja</label><input type="month" id="bStart"></div>
           <div class="field"><label for="bAge">Feleség életkora az igényléskor</label><div class="suffix"><input type="number" inputmode="numeric" min="18" max="60" step="1" id="bAge"><span>év</span></div><span class="help" id="bAgeHelp"></span></div>
         </div>
@@ -917,8 +918,10 @@ window.__KASSZA_BOOT=function(){
   }
   function touchBaba(){state.example=false;save();calcBaba()}
   const nb=v=>Math.max(0,parseFloat(v)||0);
-  $('bAmount').addEventListener('input',e=>{BB().amount=Math.min(11000000,nb(e.target.value));touchBaba()});
-  $('bTerm').addEventListener('input',e=>{BB().term=nb(e.target.value);touchBaba()});
+  const clampIn=(el,max)=>{let v=nb(el.value);if(v>max){v=max;el.value=max;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),600)}return v};
+  $('bAmount').addEventListener('input',e=>{BB().amount=clampIn(e.target,11000000);touchBaba()});
+  $('bTerm').addEventListener('input',e=>{const v=clampIn(e.target,20);BB().term=v||20;touchBaba()});
+  $('bTerm').addEventListener('change',e=>{let v=nb(e.target.value);if(v<5)v=5;v=Math.round(v);e.target.value=v;BB().term=v;touchBaba()});
   $('bStart').addEventListener('input',e=>{BB().start=e.target.value;touchBaba()});
   $('bAge').addEventListener('input',e=>{BB().age=nb(e.target.value);touchBaba()});
   $('bAddKid').addEventListener('click',()=>{const b=BB();b.kids=b.kids||[];const lastK=b.kids.filter(validKey).slice(-1)[0]||b.start||thisKey;b.kids.push(shift(lastK,b.kids.length?24:12));renderKids();touchBaba()});
