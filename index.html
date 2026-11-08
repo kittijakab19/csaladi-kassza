@@ -1813,7 +1813,7 @@ window.__KASSZA_BOOT=function(){
         if(st.k==='done'&&r.reinv)return;
         if(st.k==='done'){const v=st.has?o:a;t+=v;M+=v;if(st.has)G+=o-a}
         else if(st.k==='none'){t+=a;NL+=a}
-        else{t+=a;R+=a;up.push({r,a,o:st.has?o:null});if(st.has)F+=o-a}
+        else{t+=a;R+=a;if(a>0||(st.has&&o>0)){up.push({r,a,o:st.has?o:null});if(st.has)F+=o-a}}
       });
       const el=$('bt-'+bl.id);if(el)el.textContent=ft(t);
       per.push({n:bl.name||'Névtelen blokk',v:t,c:bl.c||PAL[bi%PAL.length][0]});
