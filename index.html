@@ -266,6 +266,23 @@ input[type=month]:focus{border-color:var(--accent);outline:none;background:var(-
 .chart-legend span{display:inline-flex;align-items:center;gap:6px}
 .chart-legend i{display:inline-block;width:12px;height:8px;border-radius:3px}
 input.flash{border-color:var(--warn)!important;background:color-mix(in srgb,var(--warn) 12%,var(--surface))!important}
+.kid{grid-template-columns:auto 170px auto minmax(0,1fr) 36px!important}
+.kid .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;cursor:pointer}
+.kid .chk.muted{color:var(--muted);cursor:default}
+.kid .chk input{width:16px;height:16px;accent-color:var(--accent)}
+@media (max-width:700px){.kid{grid-template-columns:auto minmax(0,1fr) 36px!important}.kid .chk,.kid .eff{grid-column:1/-1}}
+table.detail{min-width:640px;border-spacing:0}
+table.detail th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.detail th:first-child{padding-left:10px}
+table.detail th:nth-child(n+3),table.detail td:nth-child(n+3){text-align:right;white-space:nowrap}
+table.detail td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+table.detail td:first-child{padding-left:10px;width:120px;color:var(--muted);font-size:13px}
+table.detail td b{display:block;font-weight:600}
+table.detail td span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+table.detail tr.pause td{background:color-mix(in srgb,var(--pause) 9%,transparent)}
+table.detail tr.evkid td:nth-child(2) b{color:var(--kid)}
+table.detail tr.ev.warn td:nth-child(2) b{color:var(--bad)}
+table.detail tr.pay td:nth-child(4){font-weight:600}
 </style>
 </head>
 <body>
@@ -463,6 +480,15 @@ input.flash{border-color:var(--warn)!important;background:color-mix(in srgb,var(
         <p class="note">Csak a hitelfelvétel után született (vagy örökbe fogadott) gyermekek számítanak. Ikreknél add meg mindkét gyermeket ugyanazzal a hónappal.</p>
       </section>
 
+      <section class="panel" aria-labelledby="h-bdet">
+        <div class="panel-head"><h2 id="h-bdet">Részletes bontás</h2><span class="note num" id="bDetailSum"></span></div>
+        <div class="tablewrap"><table class="detail">
+          <thead><tr><th>Időszak</th><th>Mi történik</th><th>Időtartam</th><th>Havi fizetés</th><th>Összesen</th></tr></thead>
+          <tbody id="bDetail" class="num"></tbody>
+        </table></div>
+        <p class="note">A havi fizetés a tőkerészből és az évi 0,5%-os kezességvállalási díjból áll. A díj a tartozással együtt csökken, ezért a törlesztő hónapról hónapra kicsit kisebb. A 2. gyermek utáni elengedésnél az eredeti futamidő marad, így a havi törlesztő csökken.</p>
+      </section>
+
       <section class="panel" aria-labelledby="h-bchart">
         <div class="panel-head"><h2 id="h-bchart">Így csökken a tartozás</h2>
           <div class="chart-legend"><span><i style="background:var(--accent)"></i>Fennálló tartozás</span><span><i style="background:var(--pause);opacity:.35"></i>Törlesztési szünet</span><span><i style="background:var(--kid);width:10px;height:10px;border-radius:50%"></i>Gyermek születése</span></div></div>
@@ -519,7 +545,7 @@ window.__KASSZA_BOOT=function(){
   const BASE_SAV=[['Vésztartalék',50000],['Lakáscél / önerő',60000],['Nyugdíj-előtakarékosság',20000],['Állampapír, befektetés',0]];
   const zero=b=>b.map(([n])=>[n,0]);
   function mk(base,acts){return base.map(([n,p],i)=>({id:++uid,n,plan:p,act:acts?acts[i]:null}))}
-  function sampleBaba(){return {amount:11000000,term:20,start:thisKey,age:28,kids:[shift(thisKey,18),shift(thisKey,54)]}}
+  function sampleBaba(){return {amount:11000000,term:20,start:thisKey,age:28,kids:[{k:shift(thisKey,18),pause:true}]}}
   function LAYOUT0(){return [{id:'loan',name:'Hiteltörlesztések',kind:'loan'},{id:'sav',name:'Megtakarítások',kind:'sav'}]}
   function sample(){
     const m={},k0=shift(thisKey,-2),k1=shift(thisKey,-1);
@@ -868,35 +894,42 @@ window.__KASSZA_BOOT=function(){
 
 
   // ---------- 3. lépés: Babaváró ----------
-  const BB=()=>state.baba||(state.baba=sampleBaba());
+  const BB=()=>{const b=state.baba||(state.baba=sampleBaba());b.kids=(b.kids||[]).map(k=>typeof k==='string'?{k,pause:true}:k);return b};
   const mBetween=(a,b)=>{const [y1,m1]=a.split('-').map(Number),[y2,m2]=b.split('-').map(Number);return (y2-y1)*12+(m2-m1)};
   const validKey=k=>/^\d{4}-\d{2}$/.test(k||'');
+  const durTxt=n=>{const y=Math.floor(n/12),m=n%12;return [y?y+' év':'',m?m+' hónap':''].filter(Boolean).join(' ')||'0 hónap'};
   function babaSim(){
-    const b=BB(),A=Math.min(11000000,Math.max(0,+b.amount||0)),N=Math.min(20,Math.max(5,+b.term||20))*12,start=validKey(b.start)?b.start:thisKey;
-    const P=A/N;
-    const kids=(b.kids||[]).filter(validKey).map(k=>({k,m:mBetween(start,k)})).filter(x=>x.m>=0).sort((x,y)=>x.m-y.m);
-    let bal=A,susp=-1,paid=0,fees=0,forgiven=0,suspMonths=0,cnt=0,last=null,firstPay=null;
-    const pts=[{m:0,b:A}],evs=[{m:0,type:'start'}],sRanges=[];
+    const b=BB(),A=Math.min(11000000,Math.max(0,+b.amount||0)),Nm=Math.min(20,Math.max(5,+b.term||20))*12,start=validKey(b.start)?b.start:thisKey;
+    let P=A/Nm;
+    const kids=b.kids.filter(x=>validKey(x.k)).map(x=>({k:x.k,pause:x.pause!==false,m:mBetween(start,x.k)})).filter(x=>x.m>=0).sort((x,y)=>x.m-y.m);
+    let bal=A,susp=-1,made=0,paid=0,fees=0,forgiven=0,suspMonths=0,cnt=0,last=null,ph=null;
+    const rows=[],evs=[{m:0,type:'start'}],series=[{m:0,b:A}],sRanges=[];
+    const firstP=A>0?P+A*0.005/12:0;
     for(let m=0;m<=720&&bal>0.5;m++){
       kids.filter(x=>x.m===m).forEach(x=>{
-        cnt++;
-        if(cnt===1){susp=Math.max(susp,m+36);evs.push({m,type:'kid',n:1,until:m+36})}
-        else if(cnt===2){const f=bal*0.3;bal-=f;forgiven+=f;susp=Math.max(susp,m+36);evs.push({m,type:'kid',n:2,f,until:m+36})}
-        else if(cnt===3){forgiven+=bal;evs.push({m,type:'kid',n:3,f:bal});bal=0}
-        else evs.push({m,type:'kid',n:cnt});
+        cnt++;const ev={m,type:'kid',n:cnt,pause:x.pause};
+        if(cnt===1){if(x.pause){susp=Math.max(susp,m+36);ev.until=m+36}}
+        else if(cnt===2){const f=bal*0.3;bal-=f;forgiven+=f;ev.f=f;ev.bal=bal;P=bal/Math.max(1,Nm-made);ev.newPay=P+bal*0.005/12;if(x.pause){susp=Math.max(susp,m+36);ev.until=m+36}}
+        else if(cnt===3){ev.f=bal;forgiven+=bal;bal=0}
+        evs.push(ev);rows.push({type:'event',ev});ph=null;
       });
+      series.push({m,b:Math.max(0,bal)});
       if(bal<=0.5)break;
       if(m===0)continue;
-      if(m<susp){suspMonths++;continue}
-      const fee=bal*0.005/12,pr=Math.min(P,bal);
-      if(firstPay===null)firstPay={m,v:pr+fee};
-      bal-=pr;paid+=pr+fee;fees+=fee;last=m;
-      pts.push({m,b:Math.max(0,bal)});
+      if(m<susp){
+        if(!ph||ph.type!=='pause'){ph={type:'pause',from:m,to:m,months:0};rows.push(ph)}
+        ph.to=m;ph.months++;suspMonths++;continue;
+      }
+      const fee=bal*0.005/12,pr=Math.min(P,bal),pay=pr+fee;
+      if(!ph||ph.type!=='pay'){ph={type:'pay',from:m,to:m,months:0,sum:0,first:pay,last:pay,bal0:bal};rows.push(ph)}
+      ph.to=m;ph.months++;ph.sum+=pay;ph.last=pay;
+      bal-=pr;made++;paid+=pay;fees+=fee;last=m;ph.bal1=Math.max(0,bal);
+      series[series.length-1].b=Math.max(0,bal);
     }
-    // szünet-tartományok összevonva
-    evs.filter(e=>e.until).forEach(e=>{const r=sRanges[sRanges.length-1];if(r&&e.m<=r.to)r.to=Math.max(r.to,e.until);else sRanges.push({from:e.m,to:e.until})});
-    const endM=bal<=0.5&&cnt>=3?evs.find(e=>e.n===3).m:last;
-    return {A,N,P,start,kids,paid,fees,forgiven,suspMonths,last,endM,firstPay,evs,sRanges,cnt,firstKidM:kids.length?kids[0].m:null};
+    rows.filter(r=>r.type==='pause').forEach(r=>sRanges.push({from:r.from,to:r.to+1}));
+    const ev3=evs.find(e=>e.n===3);
+    const endM=ev3&&bal<=0.5?ev3.m:last;
+    return {A,Nm,P,firstP,start,kids,paid,fees,forgiven,suspMonths,last,endM,evs,rows,series,sRanges,cnt,firstKidM:kids.length?kids[0].m:null};
   }
   function renderBaba(){
     const b=BB();
@@ -905,15 +938,17 @@ window.__KASSZA_BOOT=function(){
   }
   function renderKids(){
     const b=BB(),box=$('bKids');box.innerHTML='';
-    (b.kids||[]).forEach((k,i)=>{
+    b.kids.forEach((kid,i)=>{
       const d=document.createElement('div');d.className='kid';
-      d.innerHTML=`<b>${i+1}. gyermek</b><input type="month" aria-label="${i+1}. gyermek születési hónapja"><span class="eff"></span><button class="del" type="button" aria-label="Gyermek törlése" title="Törlés">×</button>`;
-      const inp=d.querySelector('input');inp.value=k||'';
-      inp.addEventListener('input',()=>{b.kids[i]=inp.value;touchBaba()});
+      d.innerHTML=`<b>${i+1}. gyermek</b><input type="month" aria-label="${i+1}. gyermek születési hónapja">${i<2?`<label class="chk"><input type="checkbox"> 3 év szünetet kérünk</label>`:'<span class="chk muted">teljes elengedés</span>'}<span class="eff"></span><button class="del" type="button" aria-label="Gyermek törlése" title="Törlés">×</button>`;
+      const inp=d.querySelector('input[type=month]');inp.value=kid.k||'';
+      inp.addEventListener('input',()=>{kid.k=inp.value;touchBaba()});
+      const cb=d.querySelector('input[type=checkbox]');
+      if(cb){cb.checked=kid.pause!==false;cb.addEventListener('change',()=>{kid.pause=cb.checked;touchBaba()})}
       d.querySelector('.del').addEventListener('click',()=>{b.kids.splice(i,1);renderKids();touchBaba()});
       box.appendChild(d);
     });
-    if(!(b.kids||[]).length)box.innerHTML='<p class="note">Még nincs gyermek megadva. Az első gyermek 3 év törlesztési szünetet hoz, a második 30% elengedést és újabb 3 év szünetet, a harmadik a teljes tartozás elengedését.</p>';
+    if(!b.kids.length)box.innerHTML='<p class="note">Még nincs gyermek megadva. Az első gyermek után 3 év törlesztési szünetet kérhettek, a második után a tartozás 30%-át elengedik (és újabb 3 év szünet kérhető), a harmadik után a teljes tartozást.</p>';
   }
   function touchBaba(){state.example=false;save();calcBaba()}
   const nb=v=>Math.max(0,parseFloat(v)||0);
@@ -923,26 +958,27 @@ window.__KASSZA_BOOT=function(){
   $('bTerm').addEventListener('change',e=>{let v=nb(e.target.value);if(v<5)v=5;v=Math.round(v);e.target.value=v;BB().term=v;touchBaba()});
   $('bStart').addEventListener('input',e=>{BB().start=e.target.value;touchBaba()});
   $('bAge').addEventListener('input',e=>{BB().age=nb(e.target.value);touchBaba()});
-  $('bAddKid').addEventListener('click',()=>{const b=BB();b.kids=b.kids||[];const lastK=b.kids.filter(validKey).slice(-1)[0]||b.start||thisKey;b.kids.push(shift(lastK,b.kids.length?24:12));renderKids();touchBaba()});
+  $('bAddKid').addEventListener('click',()=>{const b=BB();const lastK=b.kids.map(x=>x.k).filter(validKey).slice(-1)[0]||b.start||thisKey;b.kids.push({k:shift(lastK,b.kids.length?24:12),pause:true});renderKids();touchBaba()});
 
   function calcBaba(){
     if($('view-babavaro').hidden)return;
-    const b=BB(),S=babaSim(),lab=m=>labelOf(shift(S.start,m));
-    // gyermek-sorok magyarázata
-    const effTxt=['3 év törlesztési szünet','30% elengedés + 3 év szünet','a teljes tartozás elengedése'];
+    const b=BB(),S=babaSim(),lab=m=>labelOf(shift(S.start,m)),r100=v=>ft(Math.round(v/10)*10);
+    // gyermek-sorok rövid magyarázata
     [...$('bKids').querySelectorAll('.kid')].forEach((row,i)=>{
-      const k=(b.kids||[])[i],eff=row.querySelector('.eff');
-      if(!validKey(k)){eff.textContent='Add meg a hónapot.';return}
-      const m=mBetween(S.start,k);
-      if(m<0){eff.textContent='A hitelfelvétel előtt született, nem számít bele.';return}
-      const idx=S.kids.findIndex(x=>x.k===k&&x.m===m)+S.kids.slice(0,S.kids.findIndex(x=>x.k===k&&x.m===m)).length*0;
-      const order=S.kids.filter(x=>x.m<m).length+S.kids.filter(x=>x.m===m&&(b.kids.indexOf(x.k)<i)).length;
-      eff.textContent=order<3?effTxt[order]:'A tartozás addigra már nulla.';
+      const kid=b.kids[i],eff=row.querySelector('.eff');
+      if(!validKey(kid.k)){eff.textContent='Add meg a hónapot.';return}
+      const m=mBetween(S.start,kid.k);
+      if(m<0){eff.textContent='A hitelfelvétel előtt született, nem számít.';return}
+      const ev=S.evs.find(e=>e.type==='kid'&&e.m===m&&!e._used);
+      if(!ev){eff.textContent='A tartozás addigra már nulla.';return}
+      ev._used=true;
+      eff.textContent=ev.n===1?(ev.pause?'3 év szünet':'nincs szünet, fizettek tovább'):ev.n===2?`−${ft(ev.f)} elengedés${ev.pause?' + 3 év szünet':''}`:ev.n===3?`−${ft(ev.f)}, teljes elengedés`:'';
     });
+    S.evs.forEach(e=>delete e._used);
     const age=+b.age||0,ageOk=age>=18&&age<35;
     $('bAgeHelp').textContent=!age?'A feleség az igényléskor még nem töltheti be a 35. évét.':ageOk?'Rendben: 18 és 35 év között.':'A feleség 35 évesen vagy idősebben már nem igényelheti.';
     $('bAgeHelp').style.color=age&&!ageOk?'var(--bad)':'';
-    $('bMonthly').textContent=S.A>0?ft(Math.round(S.P+S.A*0.005/12)):'0 Ft';
+    $('bMonthly').textContent=r100(S.firstP);
     const p1=$('bPill1'),p2=$('bPill2');
     if(S.A<=0){p1.textContent='Add meg a hitelösszeget';p1.className='pill warn'}
     else if(S.firstKidM!==null&&S.firstKidM<=60){p1.textContent='Kamatmentes marad';p1.className='pill good'}
@@ -950,44 +986,62 @@ window.__KASSZA_BOOT=function(){
     p2.hidden=!(age&&!ageOk);p2.textContent='Életkor miatt nem igényelhető';p2.className='pill neg';
     $('bkA').textContent=ft(S.A);$('bkF').textContent=S.forgiven>0?'−'+ft(S.forgiven):'0 Ft';
     $('bkP').textContent=ft(S.paid);$('bkFee').textContent=ft(S.fees);
-    $('bkS').textContent=S.suspMonths?(Math.floor(S.suspMonths/12)?Math.floor(S.suspMonths/12)+' év ':'')+(S.suspMonths%12?S.suspMonths%12+' hónap':''):'nincs';
+    $('bkS').textContent=S.suspMonths?durTxt(S.suspMonths):'nincs';
     $('bkEnd').textContent=S.endM!=null?lab(S.endM):'–';
-    // idővonal
+
+    // részletes bontás
+    const tb=$('bDetail');tb.innerHTML='';
+    const tr=(cls,cells)=>{const r=document.createElement('tr');r.className=cls;r.innerHTML=cells.map(c=>`<td>${c}</td>`).join('');tb.appendChild(r)};
+    tr('ev',[lab(0),`<b>Folyósítás</b><span>${ft(S.A)} hitel ${b.term||20} évre</span>`,'','','']);
+    S.rows.forEach(r=>{
+      if(r.type==='pay'){
+        const per=Math.abs(r.first-r.last)<50?`${r100(r.first)}`:`${r100(r.first)} → ${r100(r.last)}`;
+        tr('pay',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztés</b><span>tartozás: ${ft(r.bal0)} → ${ft(r.bal1)}</span>`,durTxt(r.months),per,ft(r.sum)]);
+      }else if(r.type==='pause'){
+        tr('pause',[`${lab(r.from)} –<br>${lab(r.to)}`,`<b>Törlesztési szünet</b><span>ilyenkor nem kell fizetni, a futamidő ennyivel meghosszabbodik</span>`,durTxt(r.months),'0 Ft','0 Ft']);
+      }else{
+        const e=r.ev;let t,sub;
+        if(e.n===1){t='1. gyermek születése';sub=e.pause?'3 év törlesztési szünetet kértek.':'Nem kértek szünetet: a törlesztés változatlanul megy tovább.'}
+        else if(e.n===2){t='2. gyermek születése';sub=`A tartozás 30%-át elengedik: −${ft(e.f)}. A maradék ${ft(e.bal)}, az új havi törlesztő kb. ${r100(e.newPay)}.${e.pause?' Újabb 3 év szünetet kértek.':' Nem kértek szünetet.'}`}
+        else if(e.n===3){t='3. gyermek születése';sub=`A teljes maradék tartozást elengedik: −${ft(e.f)}. Nincs több törlesztés.`}
+        else{t=`${e.n}. gyermek születése`;sub='A hitel addigra már rendezve van.'}
+        tr('ev evkid',[lab(e.m),`<b>${t}</b><span>${sub}</span>`,'','','']);
+      }
+    });
+    if(S.cnt<3&&S.endM!=null)tr('ev end',[lab(S.endM),'<b>Utolsó törlesztés</b><span>A hitel teljesen visszafizetve.</span>','','','']);
+    if(S.firstKidM===null||S.firstKidM>60)tr('ev warn',[lab(60),'<b>Eddig kellene megszületnie az első gyermeknek</b><span>Ha 5 éven belül nincs gyermek, megszűnik a kamatmentesség, és a kamattámogatást vissza kell fizetni. Ezt a bontás nem számolja.</span>','','','']);
+    $('bDetailSum').textContent=`Összesen visszafizettek: ${ft(S.paid)} · elengedett tartozás: ${ft(S.forgiven)}`;
+
+    // idővonal (jobb oldal)
     const tl=$('bTimeline');tl.innerHTML='';
     const add=(m,cls,title,sub)=>{const li=document.createElement('li');li.innerHTML=`<span class="d">${lab(m)}</span><span class="m ${cls}"></span><span class="t"><b></b><span></span></span>`;li.querySelector('b').textContent=title;li.querySelector('.t span').textContent=sub||'';tl.appendChild(li)};
-    add(0,'','Folyósítás',`${ft(S.A)}, havi törlesztő kb. ${ft(Math.round(S.P+S.A*0.005/12))}, ${b.term||20} év`);
-    if(S.firstKidM===null||S.firstKidM>60)add(60,'warn','Eddig kellene megszületnie az első gyermeknek','Ha 5 éven belül nincs gyermek, megszűnik a kamatmentesség, és a kamattámogatást vissza kell fizetni.');
-    S.evs.filter(e=>e.type==='kid').forEach(e=>{
-      if(e.n===1)add(e.m,'kid','1. gyermek születése',`3 év törlesztési szünet, ${lab(e.until)}ig.`);
-      else if(e.n===2)add(e.m,'kid','2. gyermek születése',`${ft(e.f)} elengedés (a tartozás 30%-a), és újabb 3 év szünet ${lab(e.until)}ig.`);
-      else if(e.n===3)add(e.m,'kid','3. gyermek születése',`A maradék ${ft(e.f)} tartozást teljesen elengedik. Nincs több törlesztés.`);
+    add(0,'','Folyósítás',`${ft(S.A)}, havi kb. ${r100(S.firstP)}`);
+    S.evs.filter(e=>e.type==='kid'&&e.n<=3).forEach(e=>{
+      if(e.n===1)add(e.m,'kid','1. gyermek',e.pause?`3 év szünet, ${lab(e.until)}ig`:'nincs szünet');
+      else if(e.n===2)add(e.m,'kid','2. gyermek',`−${ft(e.f)} elengedés${e.pause?', 3 év szünet':''}`);
+      else add(e.m,'kid','3. gyermek',`−${ft(e.f)}, teljes elengedés`);
     });
-    if(S.cnt<3&&S.endM!=null)add(S.endM,'end','Utolsó törlesztés','A hitel teljesen visszafizetve.');
+    if(S.cnt<3&&S.endM!=null)add(S.endM,'end','Utolsó törlesztés','');
     drawBaba(S);
   }
   function drawBaba(S){
     const svg=$('bChart'),W=640,H=240,L=56,R=12,Tp=14,Bm=26;
-    const N=Math.max(24,(S.endM||S.N)+6),x=m=>L+m/N*(W-L-R),hi=Math.max(1,S.A);
+    const N=Math.max(24,(S.endM||S.Nm)+6),x=m=>L+m/N*(W-L-R),hi=Math.max(1,S.A);
     const step=niceStep(hi/4),top=Math.ceil(hi/step)*step,y=v=>Tp+(1-v/top)*(H-Tp-Bm);
     let s='';
     S.sRanges.forEach(r=>{const a=x(r.from),b2=x(Math.min(r.to,N));s+=`<rect x="${a}" y="${Tp}" width="${Math.max(0,b2-a)}" height="${H-Tp-Bm}" fill="var(--pause)" fill-opacity=".13"/>`});
     for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${short(v)}</text>`;
     const yStep=N<=72?12:N<=180?24:48;
     for(let m=0;m<=N;m+=yStep)s+=`<text x="${x(m)}" y="${H-8}" text-anchor="middle">${shift(S.start,m).slice(0,4)}</text>`;
-    // lépcsős görbe
-    let bal=S.A,d=`M${x(0)},${y(bal)}`;const P=S.P;let cnt=0,susp=-1;
-    for(let m=1;m<=N&&bal>0;m++){
-      S.kids.filter(k=>k.m===m).forEach(()=>{cnt++;if(cnt===1)susp=Math.max(susp,m+36);else if(cnt===2){bal*=0.7;susp=Math.max(susp,m+36)}else if(cnt===3)bal=0;d+=`L${x(m)},${y(bal)}`});
-      if(bal>0&&m>=susp)bal=Math.max(0,bal-P);
-      d+=`L${x(m)},${y(bal)}`;
-    }
-    s+=`<path d="${d}L${x(N)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent)" fill-opacity=".18"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+    let d='';S.series.forEach((p,i)=>{d+=(i?'L':'M')+x(p.m).toFixed(1)+','+y(p.b).toFixed(1)});
+    const lastM=S.series[S.series.length-1].m;
+    s+=`<path d="${d}L${x(lastM)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent)" fill-opacity=".18"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
     S.kids.slice(0,3).forEach((k,i)=>{if(k.m<=N)s+=`<line x1="${x(k.m)}" x2="${x(k.m)}" y1="${Tp+16}" y2="${y(0)}" stroke="var(--kid)" stroke-width="1.5" stroke-dasharray="3 3"/><circle cx="${x(k.m)}" cy="${Tp+8}" r="8" fill="var(--kid)"/><text x="${x(k.m)}" y="${Tp+11.5}" text-anchor="middle" style="fill:#fff;font-weight:700;font-size:10px">${i+1}</text>`});
     if(S.firstKidM===null||S.firstKidM>60){if(60<=N)s+=`<line x1="${x(60)}" x2="${x(60)}" y1="${Tp}" y2="${y(0)}" stroke="var(--bad)" stroke-dasharray="4 3"/><text x="${x(60)+4}" y="${Tp+10}" style="fill:var(--bad)">5 év</text>`}
     svg.innerHTML=s;
   }
   $('bToBudget').addEventListener('click',()=>{
-    const S=babaSim(),v=Math.round(S.P+S.A*0.005/12);
+    const S=babaSim(),v=Math.round(S.firstP);
     let blk=lay().find(b=>b.kind==='loan');
     if(!blk){blk={id:'loan',name:'Hiteltörlesztések',kind:'loan'};state.layout.push(blk);Object.values(state.months).forEach(m=>{if(!m.loan)m.loan=[]})}
     const list=cur()[blk.id]||(cur()[blk.id]=[]);
