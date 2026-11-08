@@ -344,12 +344,15 @@ tr.child .handle{order:1}
 tr.child .namecell input{order:3}
 tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14px)}
 .st.reinvst{background:color-mix(in srgb,var(--own,var(--muted)) 22%,transparent)!important;color:var(--ink)}
-.reinvpick .rp-add{padding:0 12px;height:28px;font-size:12px;border-color:var(--own,var(--line));color:var(--ink)}
+.reinvpick .rp-add{padding:0 16px;height:34px;font-size:13px;border-color:var(--line);color:var(--accent)}
 .reinvpick .rp-add:hover{background:color-mix(in srgb,var(--own,var(--accent)) 12%,var(--surface))}
 .grpchip.multi{display:inline-flex;align-items:center;gap:3px;background:var(--sunk);border:1px solid var(--line)}
 .grpchip.multi i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .grpchip.multi b{font-weight:600;margin-left:3px}
-.reinvpick .rp-sel{width:auto;height:28px;padding:0 8px;font-size:12px;border-radius:999px;background:var(--surface)}
+.reinvpick .rp-sel{-webkit-appearance:none;appearance:none;width:auto;height:34px;padding:0 36px 0 16px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:999px;cursor:pointer;
+  background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2395A0B2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center;transition:border-color .15s,background-color .15s}
+.reinvpick .rp-sel:hover{border-color:var(--accent);background-color:var(--accent-soft)}
+.reinvpick .rp-sel:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .reinvpick .rp-x{border:0;background:none;color:var(--muted);font-size:14px;line-height:1;padding:0 0 0 4px;cursor:pointer}
 .reinvpick .rp-x:hover{color:var(--bad)}
 .rv-edit{font-size:12px;margin-left:8px}
