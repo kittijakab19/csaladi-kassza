@@ -210,6 +210,9 @@ input[type=password]:focus{border-color:var(--accent);outline:none;background:va
 .lockcard .field{display:flex;flex-direction:column;gap:6px}
 input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-numeric:tabular-nums}
 [hidden]{display:none!important}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#syncBar{margin-left:auto;flex-wrap:nowrap}
+@media (max-width:700px){#syncBar{order:-1;width:100%;justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -258,6 +261,7 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
 </div>
 <div class="wrap">
   <header style="display:flex;flex-direction:column;gap:18px">
+    <div class="topbar">
     <ol class="steps" aria-label="A kalkulátor lépései">
       <li><a class="step on" href="#koltsegvetes" data-v="koltsegvetes"><b>1</b>Havi költségvetés</a></li>
       <li><a class="step" href="#megtakaritas" data-v="megtakaritas"><b>2</b>Megtakarítás / befektetés</a></li>
@@ -265,6 +269,11 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
       <li><span class="step off"><b>4</b>CSOK Plusz <small>· következik</small></span></li>
       <li><span class="step off"><b>5</b>Összesítő <small>· következik</small></span></li>
     </ol>
+    <div class="toolbar" id="syncBar">
+        <span class="sync" id="syncStatus" aria-live="polite">–</span>
+        <button class="ghost" id="btnLogout" type="button">Kilépés</button>
+      </div>
+    </div>
     <div class="top">
       <div class="top-main">
         <div class="title-row">
@@ -278,10 +287,6 @@ input.pin{font-size:24px;letter-spacing:.5em;text-align:center;font-variant-nume
         </div>
         <p class="lead" id="lead">Add meg a havi bevételeket és a tervezett kiadásokat, közben írd be, mennyit költöttél ténylegesen. Az eltérés oszlop mutatja, hol költöttél többet a tervezettnél.</p>
         <span class="example" id="exampleTag">A kitöltött számok csak példák. Írd át őket a sajátjaidra.</span>
-      </div>
-      <div class="toolbar" id="syncBar">
-        <span class="sync" id="syncStatus" aria-live="polite">–</span>
-        <button class="ghost" id="btnLogout" type="button">Kilépés</button>
       </div>
       <div class="toolbar" id="confirmBar" hidden>
         <span class="pill neg" id="confirmText">Biztosan törlöd a hónap összes számát?</span>
