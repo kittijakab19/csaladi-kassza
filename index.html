@@ -750,7 +750,7 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
 window.__KASSZA_BOOT=function(){
   const KEY='csaladi-kassza-v2', OLDKEY='csaladi-kassza-v1';
   const HU=['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
-  const PAL=[['#4C7BD9','kék'],['#4DA8DA','égkék'],['#2BA59B','türkiz'],['#6DB14B','zöld'],['#E2A93B','mustár'],['#EE8640','narancs'],['#E0605A','korall'],['#D65C94','rózsa'],['#8F6AD8','lila'],['#74839A','palaszürke'],['#2E7D4F','sötétzöld'],['#F2A07B','barack'],['#9B2D4A','bordó'],['#8A9A3B','olíva'],['#8C6A4F','barna']];
+  const PAL=[['#4C7BD9','kék'],['#4DA8DA','égkék'],['#2BA59B','türkiz'],['#6DB14B','zöld'],['#E2A93B','mustár'],['#EE8640','narancs'],['#E0605A','korall'],['#D65C94','rózsa'],['#8F6AD8','lila'],['#74839A','palaszürke'],['#2E7D4F','sötétzöld'],['#F2A07B','barack'],['#9B2D4A','bordó'],['#D93A3A','piros'],['#8C6A4F','barna']];
   const colorOf=(r,i,kind)=>r.c||(kind==='inc'?'#6DB14B':kind==='sav'?'#4C7BD9':kind==='loan'?'#8F6AD8':PAL[i%PAL.length][0]);
   const fmt=new Intl.NumberFormat('hu-HU',{maximumFractionDigits:0});
   const ft=v=>fmt.format(Math.round(v))+' Ft';
