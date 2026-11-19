@@ -449,6 +449,7 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
             <div class="cur" id="curM" aria-live="polite">–</div>
             <button class="iconbtn" id="nextM" type="button" aria-label="Következő hónap">›</button>
           </div>
+          <button class="ghost" id="btnPdf" type="button" title="Az aktuális hónap letöltése PDF-ben">PDF letöltés</button>
           <button class="ghost" id="btnClearMonth" type="button">Adatok törlése</button>
         </div>
         <p class="lead" id="lead">Add meg a havi bevételeket és a tervezett kiadásokat, közben írd be, mennyit költöttél ténylegesen. Az eltérés oszlop mutatja, hol költöttél többet a tervezettnél.</p>
@@ -749,7 +750,7 @@ tr.subrow.grp td,tr.noterow.grp td{padding-left:calc(26px + var(--depth,0) * 14p
 window.__KASSZA_BOOT=function(){
   const KEY='csaladi-kassza-v2', OLDKEY='csaladi-kassza-v1';
   const HU=['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
-  const PAL=[['#4C7BD9','kék'],['#4DA8DA','égkék'],['#2BA59B','türkiz'],['#6DB14B','zöld'],['#E2A93B','mustár'],['#EE8640','narancs'],['#E0605A','korall'],['#D65C94','rózsa'],['#8F6AD8','lila'],['#74839A','palaszürke']];
+  const PAL=[['#4C7BD9','kék'],['#4DA8DA','égkék'],['#2BA59B','türkiz'],['#6DB14B','zöld'],['#E2A93B','mustár'],['#EE8640','narancs'],['#E0605A','korall'],['#D65C94','rózsa'],['#8F6AD8','lila'],['#74839A','palaszürke'],['#2E7D4F','sötétzöld'],['#F2A07B','barack'],['#9B2D4A','bordó'],['#8A9A3B','olíva'],['#8C6A4F','barna']];
   const colorOf=(r,i,kind)=>r.c||(kind==='inc'?'#6DB14B':kind==='sav'?'#4C7BD9':kind==='loan'?'#8F6AD8':PAL[i%PAL.length][0]);
   const fmt=new Intl.NumberFormat('hu-HU',{maximumFractionDigits:0});
   const ft=v=>fmt.format(Math.round(v))+' Ft';
@@ -1582,7 +1583,7 @@ window.__KASSZA_BOOT=function(){
     document.querySelectorAll('.step[data-v]').forEach(a=>{const on=a.dataset.v===v;a.classList.toggle('on',on);if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
     $('lead').textContent=LEADS[v];
     const b=v==='koltsegvetes';
-    $('monthSw').hidden=!b;$('btnClearMonth').hidden=!b;
+    $('monthSw').hidden=!b;$('btnClearMonth').hidden=!b;$('btnPdf').hidden=!b;
     if(!b){showConfirm(false);if(v==='megtakaritas')renderPort();else if(v==='csok')renderCsok();else if(v==='wekerle')renderWek();else renderBaba()}
   }
   window.addEventListener('hashchange',route);
@@ -1897,6 +1898,68 @@ window.__KASSZA_BOOT=function(){
   $('addSavBlock').addEventListener('click',()=>{port().blocks.push({id:uidp(),name:'Új megtakarítás blokk',type:'sav',rows:[{id:uidp(),n:'Új megtakarítás',amt:0}]});touchPort();renderPort();const b=port().blocks.at(-1);$('bn-'+b.id).select()});
   $('addInvBlock').addEventListener('click',()=>{port().blocks.push({id:uidp(),name:'Új befektetés blokk',type:'inv',rows:[{id:uidp(),n:'Új befektetés',start:todayISO(),amt:0,end:'',out:null}]});touchPort();renderPort();const b=port().blocks.at(-1);$('bn-'+b.id).select()});
 
+  // ---------- PDF letöltés (az aktuális hónap) ----------
+  function loadPdfLib(){
+    if(window.html2pdf)return Promise.resolve();
+    return new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';sc.onload=ok;sc.onerror=()=>no(new Error('lib'));document.head.appendChild(sc)});
+  }
+  function reportHtml(){
+    const mo=cur(),T=totals(mo),inc=T.inc,bal=T.inc-T.exp-T.loan-T.sav;
+    const e=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const row=(r,kind)=>{const a=has(r),d=a?(+r.act||0)-(+r.plan||0):null;const good=d===null||d===0?'':((kind==='sav')===(d>0)?'#1B7A4B':'#B83A3A');
+      return `<tr><td>${e(r.n||'–')}</td><td class="n">${ft(+r.plan||0)}</td>${kind==='inc'?'':`<td class="n">${a?ft(+r.act||0):'–'}</td><td class="n" style="color:${good||'#5A6577'}">${d===null?'–':(d===0?'0 Ft':sft(d))}</td>`}</tr>`};
+    const table=(title,list,kind)=>{
+      const p=list.reduce((t,r)=>t+(+r.plan||0),0),f=list.filter(has),a=f.reduce((t,r)=>t+(+r.act||0),0);
+      return `<h3>${e(title)}</h3><table><thead><tr><th>Megnevezés</th><th class="n">${kind==='inc'?'Havi összeg':'Terv'}</th>${kind==='inc'?'':'<th class="n">Tény</th><th class="n">Eltérés</th>'}</tr></thead><tbody>${list.map(r=>row(r,kind)).join('')||`<tr><td colspan="4" style="color:#5A6577">Nincs tétel</td></tr>`}</tbody>
+        <tfoot><tr><td>Összesen</td><td class="n">${ft(p)}</td>${kind==='inc'?'':`<td class="n">${f.length?ft(a):'–'}</td><td></td>`}</tr></tfoot></table>`};
+    let blocks=table('Bevételek',mo.inc,'inc')+table('Kiadások',mo.exp,'exp');
+    lay().forEach(b=>{blocks+=table(b.name||'Névtelen blokk',mo[b.id]||[],b.kind)});
+    const rate=inc>0?T.sav/inc*100:0;
+    const analysis=[...document.querySelectorAll('#hint .analysis li')].map(li=>`<li>${e(li.textContent)}</li>`).join('');
+    const today=new Date().toLocaleDateString('hu-HU');
+    return `<div class="rep">
+      <style>
+        .rep{font-family:"Instrument Sans","Helvetica Neue",Arial,sans-serif;color:#121A26;width:720px;padding:8px 4px;font-size:12px;line-height:1.45;background:#fff}
+        .rep h1{font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;font-size:26px;margin:0}
+        .rep .sub{color:#5A6577;margin:2px 0 14px}
+        .rep .sum{display:flex;gap:10px;margin-bottom:14px}
+        .rep .card{flex:1;border:1px solid #DDE2EA;border-radius:8px;padding:8px 10px}
+        .rep .card b{display:block;font-size:16px;margin-top:2px}
+        .rep .lbl{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#5A6577;font-weight:600}
+        .rep h3{font-size:14px;margin:14px 0 4px}
+        .rep table{width:100%;border-collapse:collapse;page-break-inside:auto}
+        .rep tr{page-break-inside:avoid}
+        .rep th{text-align:left;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#5A6577;border-bottom:1px solid #DDE2EA;padding:4px 6px}
+        .rep td{padding:4px 6px;border-bottom:1px solid #EEF1F5}
+        .rep tfoot td{font-weight:700;border-bottom:0;border-top:1px solid #DDE2EA}
+        .rep .n{text-align:right;white-space:nowrap}
+        .rep ul{margin:4px 0 0;padding-left:16px;color:#3a4556}
+        .rep .foot{margin-top:16px;color:#8a95a6;font-size:10px}
+      </style>
+      <h1>Családi Kassza · havi költségvetés · ${e(labelOf(state.sel))}</h1>
+      <div class="sub">Készült: ${today}</div>
+      <div class="sum">
+        <div class="card"><span class="lbl">Bevétel</span><b>${ft(inc)}</b></div>
+        <div class="card"><span class="lbl">Kiadás</span><b>${ft(T.exp)}</b></div>
+        <div class="card"><span class="lbl">Hitel</span><b>${ft(T.loan)}</b></div>
+        <div class="card"><span class="lbl">Megtakarítás</span><b>${ft(T.sav)}</b></div>
+        <div class="card" style="border-color:${bal<0?'#B83A3A':'#1B7A4B'}"><span class="lbl">Hó végén marad</span><b style="color:${bal<0?'#B83A3A':'#1B7A4B'}">${(bal>0?'+':'')+ft(bal)}</b></div>
+      </div>
+      <div class="sub">Megtakarítási ráta: ${fmt.format(rate)}% · A kiadásoknál a tényleges összeggel számol, ahol már be van írva, máshol a tervvel.</div>
+      ${blocks}
+      ${analysis?`<h3>Rövid elemzés</h3><ul>${analysis}</ul>`:''}
+      <div class="foot">Családi Kassza · ${e(labelOf(state.sel))}</div>
+    </div>`;
+  }
+  $('btnPdf').addEventListener('click',async()=>{
+    const btn=$('btnPdf'),old=btn.textContent;btn.disabled=true;btn.textContent='PDF készül…';
+    const holder=document.createElement('div');holder.style.cssText='position:fixed;left:-10000px;top:0;background:#fff';holder.innerHTML=reportHtml();document.body.appendChild(holder);
+    try{
+      await loadPdfLib();
+      await window.html2pdf().set({margin:[10,10,12,10],filename:`csaladi-kassza-${state.sel}.pdf`,image:{type:'jpeg',quality:.95},html2canvas:{scale:2,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(holder.firstElementChild).save();
+    }catch(err){alert('Nem sikerült elkészíteni a PDF-et. Ellenőrizd az internetkapcsolatot, és próbáld újra.')}
+    finally{holder.remove();btn.disabled=false;btn.textContent=old}
+  });
   renderRows();calc();route();
 };
 </script>
